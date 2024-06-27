@@ -161,8 +161,8 @@ def main():
     # define sidebar widget
     with st.sidebar:
         st.session_state.option = st.selectbox(
-            "🐼 or default?",
-            ("pandas layout", "default markdown"))
+            "default or pandas 🐼?",
+            ("default markdown", "pandas layout"))
         st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
         st.session_state.seed = st.slider("seed", 0, 128, 69)
         st.info("the current masking function can remove dots")
