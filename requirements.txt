@@ -1,3 +1,11 @@
 langchain
 langchain_community
-streamlit
+streamlit~=1.36.0
+
+ollama~=0.2.0
+datasets~=2.19.2
+
+requests~=2.32.3
+pandas~=2.2.2
+beautifulsoup4~=4.12.3
+nltk~=3.8.1
