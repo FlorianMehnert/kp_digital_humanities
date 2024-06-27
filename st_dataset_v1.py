@@ -4,8 +4,11 @@ import pandas as pd
 import requests
 import streamlit as st
 from bs4 import BeautifulSoup
-# import nltk
-# nltk.download('punkt')
+import nltk
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 from nltk.tokenize import sent_tokenize
 
 # st.set_page_config(page_title="data - 🪱", layout="wide")
