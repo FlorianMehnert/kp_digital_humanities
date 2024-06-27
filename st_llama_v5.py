@@ -1,6 +1,7 @@
 import streamlit as st
 from ollama import generate
 from enum import Enum
+import st_dataset_v1
 
 system = "You are an assistant. You try to find characters that do not belong in the given sentence. Only respond with the corrected sentence. Do not add any summarization."
 
@@ -94,9 +95,9 @@ with st.sidebar:
     st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=128, max_value=2048)
     st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
     if st.session_state.amount_of_inputs > 0 or st.session_state.disable_amount_responses:
-        st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=True)
+        st.session_state.amount_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=True)
     else:
-        st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=False)
+        st.session_state.amount_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=False)
     st.session_state.disallow_multi_conversations = st.toggle("reset converations")  # reset chatter input
 
 
@@ -119,6 +120,7 @@ def disable_altering():
 
 
 def main():
+    st.logo("https://ollama.com/public/ollama.png")
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
 
     if st.session_state.disallow_multi_conversations:
@@ -159,4 +161,10 @@ def main():
 
 
 # Run the main function
-main()
+
+
+pg = st.navigation([
+    st.Page(main, title="Llama3-Chat", icon="🦙", url_path="lion"),
+    st.Page(st_dataset_v1.main, title="Preprocessing", icon=":material/travel_explore:", url_path="tiger"),
+])
+pg.run()

@@ -195,6 +195,4 @@ def main():
                 g.replace('.', '\.')
                 col3.write(g)
 
-
-if __name__ == '__main__':
-    main()
+main()
