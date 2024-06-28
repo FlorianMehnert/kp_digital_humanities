@@ -5,6 +5,9 @@ import requests
 import streamlit as st
 from bs4 import BeautifulSoup
 import nltk
+
+st.set_page_config(page_title="Dataset Preprocessing", page_icon=":material/travel_explore:")
+
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:

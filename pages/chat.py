@@ -1,7 +1,6 @@
 import streamlit as st
 from ollama import generate
 from enum import Enum
-import st_dataset_v1
 
 system = "You are an assistant. You try to find characters that do not belong in the given sentence. Only respond with the corrected sentence. Do not add any summarization."
 
@@ -182,10 +181,4 @@ def main():
         st.download_button("download responses", "\n\n".join([assemble_pre_prompt(i) for i in range(st.session_state.amount_responses)]))
 
 
-# Run the main function
-
-pg = st.navigation([
-    st.Page(main, title="Llama3-Chat", icon="🦙", url_path="lion"),
-    st.Page(st_dataset_v1.main, title="Preprocessing", icon=":material/travel_explore:", url_path="tiger"),
-])
-pg.run()
+main()
