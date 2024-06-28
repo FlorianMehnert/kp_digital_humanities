@@ -7,7 +7,7 @@ st.session_state.response = ["", "", ""]
 if 'has_finished' not in st.session_state:
     st.session_state.has_finished = False
 if 'response' not in st.session_state:
-    st.session_state.response = ["" for _ in range(st.session_state.amount_responses)]
+    st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]
 if 'prompt' not in st.session_state:
     st.session_state.prompt = ""
 st.session_state.system = system
@@ -55,11 +55,11 @@ with st.sidebar:
         "**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often",
         min_value=0.0,
         value=0.9, max_value=1.0)
-    st.session_state.amount_responses = st.slider("amount of responses", min_value=1,
-                                                  value=3, max_value=50)
+    st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1,
+                                                     value=3, max_value=50)
 
-    st.session_state.response = ["" for _ in range(st.session_state.amount_responses)]
-    if st.session_state.amount_responses > 10:
+    st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]
+    if st.session_state.amount_of_responses > 10:
         st.image(
             'https://i.kym-cdn.com/entries/icons/original/000/000/043/dg1.jpg')
 
@@ -73,14 +73,14 @@ def main():
     if st.button("Generate", key="generate_button"):
         if st.session_state.prompt:
             with st.spinner("Generating response..."):
-                st.session_state.response = ["" for _ in range(st.session_state.amount_responses)]  # Clear previous responses
-                for i in range(st.session_state.amount_responses):
+                st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # Clear previous responses
+                for i in range(st.session_state.amount_of_responses):
                     for chunk in stream_response(st.session_state.prompt, i):
                         if chunk == "END":
                             break
 
     # Display responses
-    for i in range(st.session_state.amount_responses):
+    for i in range(st.session_state.amount_of_responses):
         st.text_area(f"Response {i + 1}", value=st.session_state.response[i], key=f"response_{i}")
     st.download_button("download responses", "\n\n".join(st.session_state.response))
 
