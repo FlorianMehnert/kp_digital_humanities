@@ -48,36 +48,8 @@ class Roles(Enum):
     assistant: str = f"{start_token}assistant{end_token_role}\n"
     user: str = f"{start_token}user{end_token_role}\n"
 
-
-class Prompt:
-    def __init__(self, system):
-        self.begin_token = "<|begin_of_text|>"
-        self.start_token = "<|start_header_id|>"
-        self.end_token_role = "<|end_header_id|>"
-        self.end_token_input = "<|eot_id|>"
-        self.system = system
-
-    def system_prompt(self):
-        return f'{begin_token}{Roles.system}{self.system}{end_token_input}{Roles.user}'
-
-    def set_system(self, system: str):
-        self.system = system
-
-    def assember_pre_prompt(self, idx):
-        prompt: str = self.system_prompt()
-        for i in range(st.session_state.amount_of_inputs):
-            prompt += st.session_state.all_user_messages[i]
-            prompt += end_token_input
-            prompt += str(Roles.assistant)  # corresponding to the next message type
-
-            prompt += st.session_state.all_assistant_messages[idx][i]
-            prompt += end_token_input
-            prompt += str(Roles.user)
-        return prompt
-
-
 def system_prompt() -> str:
-    return f'{begin_token}{Roles.system}{st.session_state.system}{end_token_input}{Roles.user}'
+    return f'{begin_token}{Roles.system.value}{st.session_state.system}{end_token_input}{Roles.user.value}'
 
 
 def assemble_pre_prompt(idx: int) -> str:
@@ -86,11 +58,11 @@ def assemble_pre_prompt(idx: int) -> str:
     for i in range(st.session_state.amount_of_inputs):
         prompt += st.session_state.all_user_messages[i]
         prompt += end_token_input
-        prompt += str(Roles.assistant)  # corresponding to the next message type
+        prompt += str(Roles.assistant.value)  # corresponding to the next message type
 
         prompt += st.session_state.all_assistant_messages[idx][i]
         prompt += end_token_input
-        prompt += str(Roles.user)
+        prompt += str(Roles.user.value)
     return prompt
 
 
@@ -98,7 +70,7 @@ def stream_response(idx: int):
     response = generate(
         model='llama3:instruct',
         # prompt=f'<|begin_of_text|><|start_header_id|>system<|end_header_id|>{st.session_state.system}<|eot_id|><|start_header_id|>user<|end_header_id|>{st.session_state.prompt}<|start_header_id|>assistant<|end_header_id|>',
-        prompt=assemble_pre_prompt(idx) + st.session_state.prompt + end_token_input + str(Roles.assistant),
+        prompt=assemble_pre_prompt(idx) + st.session_state.prompt + end_token_input + str(Roles.assistant.value),
         options={
             'num_predict': st.session_state.num_predict,
             'temperature': st.session_state.temperature,
