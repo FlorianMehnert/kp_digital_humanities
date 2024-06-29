@@ -58,6 +58,10 @@ with st.sidebar:
     st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
     st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=128, max_value=2048)
     st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
+
+    st.write(st.session_state.user_msgs)
+    st.write(st.session_state.assistant_msgs)
+    st.write(st.session_state.response)
     if st.session_state.amount_of_inputs > 0 or st.session_state.disable_amount_responses:
         st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=True)
     else:
@@ -136,20 +140,28 @@ def main():
             clear_cache(True)
 
     if start_computation:
-        if st.session_state.has_finished:
+        if st.session_state.has_finished: # completed once
             st.session_state.count += 1  # using this to access current position in msgs arrays
-            st.session_state.has_finished = False
-        try:
-            st.session_state.user_msgs[st.session_state.count]
-        except IndexError:
-            st.session_state.user_msgs.append("")
 
-        # TODO: assuming the assistant_msgs has the correct vertical size
-        for assistant in st.session_state.assistant_msgs:
             try:
-                assistant[st.session_state.count]
+                st.session_state.user_msgs[st.session_state.count]
             except IndexError:
-                assistant.append("")
+                st.session_state.user_msgs.append("")
+
+            # TODO: assuming the assistant_msgs has the correct vertical size
+            for assistant in st.session_state.assistant_msgs:
+                try:
+                    assistant[st.session_state.count]
+                except IndexError:
+                    assistant.append("")
+
+            st.session_state.has_finished = False
+            st.session_state.user_msgs[st.session_state.count] = testing_message[st.session_state.count]  # static
+
+            # appending response from previous iteration
+            st.session_state.assistant_msgs[0][st.session_state.count-1] = st.session_state.response[0]
+
+            st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]
 
         st.write("st count is:", st.session_state.count)
 
@@ -168,11 +180,6 @@ def main():
         else:
             # prepare new cycle
             st.write("ended")
-            st.session_state.user_msgs.append(testing_message[st.session_state.count])  # static
-            st.session_state.assistant_msgs[0].append(st.session_state.response[0])
-
-        if f'response{0}' in st.session_state:
-            st.session_state.assistant_msgs[0].append(st.query_params[f"response{0}"])
 
 
 main()
