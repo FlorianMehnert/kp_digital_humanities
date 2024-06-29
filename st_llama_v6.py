@@ -56,7 +56,7 @@ with st.sidebar:
     if st.session_state.amount_of_responses > 10:
         st.image(
             'https://i.kym-cdn.com/entries/icons/original/000/000/043/dg1.jpg')
-    s1 = st.text_input("question 1", key="q1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
+    s1 = st.text_input("question 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
     q1 = st.text_input("question 1", key="q1", value="Correct this text. Only respond with the corrected text. Do not add any summarization.")
     q2 = st.text_input("question 2", key="q2", value="Try to improve on your text!")
     q3 = st.text_input("question 3", key="q3", value="Improve your text further!")
