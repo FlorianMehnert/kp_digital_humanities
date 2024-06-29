@@ -41,9 +41,33 @@ start_token = "<|start_header_id|>"
 end_token_role = "<|end_header_id|>"
 end_token_input = "<|eot_id|>"
 
+def clear_cache():
+    keys = list(st.session_state.keys())
+    for key in keys:
+        st.session_state.pop(key)
 
-# keep history
-
+    if 'has_finished' not in st.session_state:
+        st.session_state.has_finished = False
+    if 'amount_responses' not in st.session_state:
+        st.session_state.amount_of_responses = 3
+    if 'response' not in st.session_state:
+        st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # CURRENT response
+    if 'user_msgs' not in st.session_state:
+        st.session_state.user_msgs = [""]  # ALL inputs
+    if 'assistant_msgs' not in st.session_state:
+        st.session_state.assistant_msgs = [[""], [""], [""]]  # ALL responses
+    if 'prompt' not in st.session_state:
+        st.session_state.prompt = ""
+    if 'disallow_multi_conversation' not in st.session_state:
+        st.session_state.disallow_multi_conversations = False
+    if 'system' not in st.session_state:
+        st.session_state.system = system
+    if 'amount_of_inputs' not in st.session_state:
+        st.session_state.amount_of_inputs = 0
+    if 'disable_amount_responses' not in st.session_state:
+        st.session_state.disable_amount_responses = False
+    if 'count' not in st.session_state:
+        st.session_state.count = 0
 
 class Roles(Enum):
     system: str = f"{start_token}system{end_token_role}\n"
@@ -144,11 +168,7 @@ def main():
     with col1:
         start_computation = st.button("Start computation")
     with col2:
-        reset_count = st.button("Reset")
-
-    if reset_count:
-        st.cache_data.clear()
-        return
+        st.button("Reset", on_click=clear_cache())
 
     if start_computation:
         st.session_state.count += 1
@@ -181,7 +201,6 @@ def main():
             st.session_state.user_msgs.append(testing_message[st.session_state.count])  # static
             st.session_state.assistant_msgs[0].append(st.session_state.response[0])
 
-        st.write(st.session_state.response[0][-1])
         # append everything
 
         if f'response{0}' in st.session_state:
