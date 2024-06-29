@@ -13,7 +13,7 @@ def clear_cache(full_reset=True):
             st.session_state.pop(key)
 
     if 'has_finished' not in st.session_state:
-        st.session_state.has_finished = False
+        st.session_state.has_finished = True
     if 'amount_responses' not in st.session_state:
         st.session_state.amount_of_responses = 3
     if 'response' not in st.session_state:
@@ -136,9 +136,9 @@ def main():
             clear_cache(True)
 
     if start_computation:
-        st.session_state.count += 1  # using this to access current position in msgs arrays
-
-        # increment message array sizes
+        if st.session_state.has_finished:
+            st.session_state.count += 1  # using this to access current position in msgs arrays
+            st.session_state.has_finished = False
         try:
             st.session_state.user_msgs[st.session_state.count]
         except IndexError:
