@@ -94,6 +94,10 @@ def assemble_pre_prompt(idx: int) -> str:
 
 
 def stream_response(idx: int):
+    """
+    generating response for the nth assistant where n is idx
+    using st.assistant_msgs and st.user_msgs for preprompt
+    """
     response = generate(
         model='llama3:instruct',
         # prompt=f'<|begin_of_text|><|start_header_id|>system<|end_header_id|>{st.session_state.system}<|eot_id|><|start_header_id|>user<|end_header_id|>{st.session_state.prompt}<|start_header_id|>assistant<|end_header_id|>',
@@ -163,23 +167,14 @@ def main():
 
             st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]
 
-        st.write("st count is:", st.session_state.count)
-
         # with nth count go to nth gapped_passage entry
         st.session_state.prompt = testing_message[st.session_state.count]
-        st.write("session state prompt is:", st.session_state.prompt)
 
         # add user msg
         st.session_state.user_msgs[st.session_state.count] = st.session_state.prompt
 
-        st.write("**starting to generate**", st.session_state.has_finished)
-
         # generate text for nth passage entry
         if not st.session_state.has_finished:
             st.write(stream_response(0))
-        else:
-            # prepare new cycle
-            st.write("ended")
-
 
 main()
