@@ -5,6 +5,7 @@ import requests
 import streamlit as st
 from bs4 import BeautifulSoup
 import nltk
+
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
@@ -195,4 +196,5 @@ def main():
                 g.replace('.', '\\.')
                 col3.write(g)
 
-main()
+if __name__ == "__main__":
+    main()
