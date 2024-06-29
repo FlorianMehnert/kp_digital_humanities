@@ -1,7 +1,7 @@
 import streamlit as st
 from ollama import generate
 from enum import Enum
-import st_dataset_v1
+import st_dataset_v1 as ds
 
 system = "You are an assistant. You try to find characters that do not belong in the given sentence. Only respond with the corrected sentence. Do not add any summarization."
 
@@ -30,10 +30,10 @@ def clear_cache(full_reset=True):
         st.session_state.system = system
     if 'amount_of_inputs' not in st.session_state:
         st.session_state.amount_of_inputs = 0
-    if 'disable_amount_responses' not in st.session_state:
-        st.session_state.disable_amount_responses = False
     if 'count' not in st.session_state:
         st.session_state.count = -1
+    if 'option' not in st.session_state:
+        st.session_state.option = "default markdown"
 
 
 clear_cache(False)
@@ -59,14 +59,10 @@ with st.sidebar:
     st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=128, max_value=2048)
     st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
 
-    st.write(st.session_state.user_msgs)
-    st.write(st.session_state.assistant_msgs)
-    st.write(st.session_state.response)
-    if st.session_state.amount_of_inputs > 0 or st.session_state.disable_amount_responses:
-        st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=True)
-    else:
-        st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=False)
-    st.session_state.disallow_multi_conversations = st.toggle("reset converations")  # reset chatter input
+    st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
+    st.session_state.seed = st.slider("seed", 0, 128, 69)
+
+    st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=False)
 
 
 class Roles(Enum):
@@ -82,7 +78,7 @@ def system_prompt() -> str:
 def assemble_pre_prompt(idx: int) -> str:
     # get all messages in order for current conversation thread
     prompt: str = system_prompt()
-    for i in range(st.session_state.count+1):
+    for i in range(st.session_state.count + 1):
         prompt += st.session_state.user_msgs[i] if st.session_state.user_msgs[idx] else ""  # is changing
         prompt += end_token_input
         prompt += str(Roles.assistant.value)
@@ -118,8 +114,6 @@ def stream_response(idx: int):
             st.session_state.has_finished = True
 
 
-def disable_altering():
-    st.session_state.disable_amount_responses = True
 
 
 original_passage = ["There is nothing of all this in \"The King of the Golden River.\" Unlike his other works, it was written merely to entertain. Scarcely that, since it was not written for publication at all, but to meet a challenge set him by a young girl."]
@@ -135,6 +129,11 @@ def main():
     st.logo("https://ollama.com/public/ollama.png")
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
 
+    html = ds.scrape_webpage("https://www.gutenberg.org/files/701/701-h/701-h.htm#chap01") # collect_website
+    content = ds.extract_content(html)
+    content = ds.process_text(content)
+    testing_message = [ds.create_gaps(s, st.session_state.mask_rate) for s in content]
+
     # buttons
     col1, col2 = st.columns(2)
     with col1:
@@ -144,7 +143,7 @@ def main():
             clear_cache(True)
 
     if start_computation:
-        if st.session_state.has_finished: # completed once
+        if st.session_state.has_finished:  # completed once
             st.session_state.count += 1  # using this to access current position in msgs arrays
 
             try:
@@ -163,7 +162,7 @@ def main():
             st.session_state.user_msgs[st.session_state.count] = testing_message[st.session_state.count]  # static
 
             # appending response from previous iteration
-            st.session_state.assistant_msgs[0][st.session_state.count-1] = st.session_state.response[0]
+            st.session_state.assistant_msgs[0][st.session_state.count - 1] = st.session_state.response[0]
 
             st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]
 
@@ -177,4 +176,6 @@ def main():
         if not st.session_state.has_finished:
             st.write(stream_response(0))
 
-main()
+
+if __name__ == "__main__":
+    main()

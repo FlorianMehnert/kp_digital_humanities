@@ -35,6 +35,7 @@ def scrape_webpage(url):
 
 
 # Function to extract content from the HTML
+@st.cache_data(ttl=300)
 def extract_content(html) -> list[str]:
     soup = BeautifulSoup(html, 'html.parser')
     # Example: Extract all paragraphs
@@ -65,6 +66,7 @@ def remove_headlines_etc(paragraphs: list[str]) -> list[str]:
     return result
 
 
+@st.cache_data
 def process_text(full_text: str | list[str]) -> list[str]:
     temp_text: list[str]
     if type(full_text) is str:
@@ -195,6 +197,7 @@ def main():
                 g.replace('-', '\-')
                 g.replace('.', '\\.')
                 col3.write(g)
+
 
 if __name__ == "__main__":
     main()
