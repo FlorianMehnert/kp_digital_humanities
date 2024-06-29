@@ -50,6 +50,7 @@ class Roles(Enum):
     assistant: str = f"{start_token}assistant{end_token_role}\n"
     user: str = f"{start_token}user{end_token_role}\n"
 
+
 def system_prompt() -> str:
     return f'{begin_token}{Roles.system.value}{st.session_state.system}{end_token_input}{Roles.user.value}'
 
@@ -66,7 +67,7 @@ def assemble_pre_prompt(idx: int) -> str:
         prompt += end_token_input
         prompt += str(Roles.assistant.value)
 
-        prompt += st.session_state.assistant_msgs[idx][i] if st.session_state.assistant_msgs else "" # is changing
+        prompt += st.session_state.assistant_msgs[idx][i] if st.session_state.assistant_msgs else ""  # is changing
         prompt += end_token_input
         prompt += str(Roles.user.value)
     st.write(prompt)
@@ -132,25 +133,39 @@ testing_message = ["I am alpha", "I am bert", "I am chirby", "I am dirk", "I am 
 gapped_passage[0].replace('-', '\-')
 gapped_passage[0].replace('.', '\\.')
 
+
 def main():
+    # title
     st.logo("https://ollama.com/public/ollama.png")
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
 
-    if st.session_state.disallow_multi_conversations:
-        st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]
-        st.session_state.user_msgs = empty_list("user")
-        st.session_state.assistant_msgs = empty_list("assistant")
-        st.session_state.amount_of_inputs = 0
-        st.session_state.disable_amount_responses = False
-
+    # buttons
     col1, col2 = st.columns(2)
     with col1:
         start_computation = st.button("Start computation")
     with col2:
         reset_count = st.button("Reset")
-    if start_computation:
 
+    if reset_count:
+        st.cache_data.clear()
+        return
+
+    if start_computation:
         st.session_state.count += 1
+
+        # increment message array sizes
+        try:
+            st.session_state.user_msgs[st.session_state.count]
+        except IndexError:
+            st.session_state.user_msgs.append("")
+
+        # TODO: assuming the assistant_msgs has the correct vertical size
+        for assistant in st.session_state.assistant_msgs:
+            try:
+                assistant[st.session_state.count]
+            except IndexError:
+                assistant.append("")
+
         st.write("st count is:", st.session_state.count)
 
         # with nth count go to nth gapped_passage entry
@@ -169,15 +184,8 @@ def main():
         st.write(st.session_state.response[0][-1])
         # append everything
 
-
         if f'response{0}' in st.session_state:
             st.session_state.assistant_msgs[0].append(st.query_params[f"response{0}"])
-
-    if reset_count:
-        st.session_state.count = 0
-
-
-
 
     # for i in range(st.session_state.amount_of_inputs):  # corresponds to first up to previous
     #     with st.chat_message(name="user", avatar="user"):
