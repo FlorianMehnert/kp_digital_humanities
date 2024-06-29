@@ -28,8 +28,8 @@ end_token_role = "<|end_header_id|>"
 end_token_input = "<|eot_id|>"
 
 # keep history
-st.session_state.all_user_messages = []
-st.session_state.all_assistant_messages = []
+st.session_state.user_msgs = []
+st.session_state.assistant_msgs = []
 
 
 class Roles(Enum):
@@ -87,8 +87,8 @@ def main():
 
 
             # apply previous messages for each response itself - keep 10 different dialogs with amount_responses = 10
-            st.session_state.all_user_messages.append(st.session_state.prompt)
-            st.session_state.all_user_messages.append(st.session_state.response)
+            st.session_state.user_msgs.append(st.session_state.prompt)
+            st.session_state.user_msgs.append(st.session_state.response)
             st.session_state.something_downloadable = True
     if st.session_state.something_downloadable:
         st.download_button("download responses", "\n\n".join(st.session_state.response))

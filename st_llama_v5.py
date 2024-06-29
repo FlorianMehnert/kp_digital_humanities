@@ -13,9 +13,9 @@ if 'amount_responses' not in st.session_state:
 if 'response' not in st.session_state:
     st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # current responses
 if 'all_user_messages' not in st.session_state:
-    st.session_state.all_user_messages = []  # [['' for _ in range(1)] for _ in range(st.session_state.amount_responses)]
+    st.session_state.user_msgs = []  # [['' for _ in range(1)] for _ in range(st.session_state.amount_responses)]
 if 'all_assistant_messages' not in st.session_state:
-    st.session_state.all_assistant_messages = [[], [], []]  # [['' for _ in range(1)] for _ in range(st.session_state.amount_responses)]
+    st.session_state.assistant_msgs = [[], [], []]  # [['' for _ in range(1)] for _ in range(st.session_state.amount_responses)]
 if 'prompt' not in st.session_state:
     st.session_state.prompt = ""
 if 'disallow_multi_conversation' not in st.session_state:
@@ -56,11 +56,11 @@ def assemble_pre_prompt(idx: int) -> str:
     # get all messages in order for current conversation thread
     prompt: str = system_prompt()
     for i in range(st.session_state.amount_of_inputs):
-        prompt += st.session_state.all_user_messages[i]
+        prompt += st.session_state.user_msgs[i]
         prompt += end_token_input
         prompt += str(Roles.assistant.value)  # corresponding to the next message type
 
-        prompt += st.session_state.all_assistant_messages[idx][i]
+        prompt += st.session_state.assistant_msgs[idx][i]
         prompt += end_token_input
         prompt += str(Roles.user.value)
     return prompt
@@ -122,8 +122,8 @@ def main():
 
     if st.session_state.disallow_multi_conversations:
         st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]
-        st.session_state.all_user_messages = empty_list("user")
-        st.session_state.all_assistant_messages = empty_list("assistant")
+        st.session_state.user_msgs = empty_list("user")
+        st.session_state.assistant_msgs = empty_list("assistant")
         st.session_state.amount_of_inputs = 0
         st.session_state.disable_amount_responses = False
 
@@ -133,10 +133,10 @@ def main():
     # print chat message, print #amount of responses from same index repeat
     for i in range(st.session_state.amount_of_inputs):  # corresponds to first up to previous
         with st.chat_message(name="user", avatar="user"):
-            st.write(st.session_state.all_user_messages[i])
+            st.write(st.session_state.user_msgs[i])
         for j in range(st.session_state.amount_of_responses):
             with st.chat_message(name="assistant", avatar="assistant"):
-                st.write(st.session_state.all_assistant_messages[j][i])
+                st.write(st.session_state.assistant_msgs[j][i])
 
     if st.session_state.prompt:
         with st.chat_message(name="assistant", avatar="user"):
@@ -145,10 +145,10 @@ def main():
             with st.chat_message(name="assistant", avatar="assistant"):
                 st.write(stream_response(i))
             print("appending:", st.session_state.response[i])
-            st.session_state.all_assistant_messages[i].append(st.session_state.response[i])  # increase size by one and fill with response
+            st.session_state.assistant_msgs[i].append(st.session_state.response[i])  # increase size by one and fill with response
 
             st.session_state.something_downloadable = True
-        st.session_state.all_user_messages.append(st.session_state.prompt)
+        st.session_state.user_msgs.append(st.session_state.prompt)
         st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # empty responses
         st.session_state.amount_of_inputs += 1
 
