@@ -5,47 +5,12 @@ import st_dataset_v1
 
 system = "You are an assistant. You try to find characters that do not belong in the given sentence. Only respond with the corrected sentence. Do not add any summarization."
 
-# Initialize session state variables
-if 'has_finished' not in st.session_state:
-    st.session_state.has_finished = False
-if 'amount_responses' not in st.session_state:
-    st.session_state.amount_of_responses = 3
-if 'response' not in st.session_state:
-    st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # CURRENT response
-if 'user_msgs' not in st.session_state:
-    st.session_state.user_msgs = [""]  # ALL inputs
-if 'assistant_msgs' not in st.session_state:
-    st.session_state.assistant_msgs = [[""], [""], [""]]  # ALL responses
-if 'prompt' not in st.session_state:
-    st.session_state.prompt = ""
-if 'disallow_multi_conversation' not in st.session_state:
-    st.session_state.disallow_multi_conversations = False
-if 'system' not in st.session_state:
-    st.session_state.system = system
-if 'amount_of_inputs' not in st.session_state:
-    st.session_state.amount_of_inputs = 0
-if 'disable_amount_responses' not in st.session_state:
-    st.session_state.disable_amount_responses = False
-if 'count' not in st.session_state:
-    st.session_state.count = 0
 
-# tweak-able parameters for llama3 generate
-st.session_state.temperature = 0.97
-st.session_state.num_predict = 128
-st.session_state.top_p = 0.9
-st.session_state.something_downloadable = False
-
-# construct llama3 prompts
-begin_token = "<|begin_of_text|>"
-start_token = "<|start_header_id|>"
-end_token_role = "<|end_header_id|>"
-end_token_input = "<|eot_id|>"
-
-
-def clear_cache():
-    keys = list(st.session_state.keys())
-    for key in keys:
-        st.session_state.pop(key)
+def clear_cache(full_reset=True):
+    if full_reset:
+        keys = list(st.session_state.keys())
+        for key in keys:
+            st.session_state.pop(key)
 
     if 'has_finished' not in st.session_state:
         st.session_state.has_finished = False
@@ -71,6 +36,35 @@ def clear_cache():
         st.session_state.count = 0
 
 
+clear_cache(False)
+
+# tweak-able parameters for llama3 generate
+st.session_state.temperature = 0.97
+st.session_state.num_predict = 128
+st.session_state.top_p = 0.9
+st.session_state.something_downloadable = False
+
+# construct llama3 prompts
+begin_token = "<|begin_of_text|>"
+start_token = "<|start_header_id|>"
+end_token_role = "<|end_header_id|>"
+end_token_input = "<|eot_id|>"
+
+with st.sidebar:
+    if st.session_state.amount_of_responses > 10:
+        st.image(
+            'https://i.kym-cdn.com/entries/icons/original/000/000/043/dg1.jpg')
+    st.session_state.system = st.text_area("System prompt (e.g. preprompt - instructions)", key="system_input", value=system)
+    st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
+    st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=128, max_value=2048)
+    st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
+    if st.session_state.amount_of_inputs > 0 or st.session_state.disable_amount_responses:
+        st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=True)
+    else:
+        st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=False)
+    st.session_state.disallow_multi_conversations = st.toggle("reset converations")  # reset chatter input
+
+
 class Roles(Enum):
     system: str = f"{start_token}system{end_token_role}\n"
     assistant: str = f"{start_token}assistant{end_token_role}\n"
@@ -85,10 +79,7 @@ def assemble_pre_prompt(idx: int) -> str:
     # get all messages in order for current conversation thread
     prompt: str = system_prompt()
     for i in range(st.session_state.count):
-        st.write("in preprompt")
-        st.write(st.session_state.user_msgs)
-        st.write(st.session_state.assistant_msgs)
-        st.write("after preprompt")
+        st.write("in preprompt, len user:", len(st.session_state.user_msgs), "len bots:", [len(a) for a in st.session_state.assistant_msgs])
         prompt += st.session_state.user_msgs[i] if st.session_state.user_msgs[idx] else ""  # is changing
         prompt += end_token_input
         prompt += str(Roles.assistant.value)
@@ -96,7 +87,7 @@ def assemble_pre_prompt(idx: int) -> str:
         prompt += st.session_state.assistant_msgs[idx][i] if st.session_state.assistant_msgs else ""  # is changing
         prompt += end_token_input
         prompt += str(Roles.user.value)
-    st.write(prompt)
+    st.write("finished preprompt:", prompt)
     return prompt
 
 
@@ -121,33 +112,6 @@ def stream_response(idx: int):
             st.session_state.has_finished = True
 
 
-with st.sidebar:
-    if st.session_state.amount_of_responses > 10:
-        st.image(
-            'https://i.kym-cdn.com/entries/icons/original/000/000/043/dg1.jpg')
-    st.session_state.system = st.text_area("System prompt (e.g. preprompt - instructions)", key="system_input", value=system)
-    st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
-    st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=128, max_value=2048)
-    st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
-    if st.session_state.amount_of_inputs > 0 or st.session_state.disable_amount_responses:
-        st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=True)
-    else:
-        st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=False)
-    st.session_state.disallow_multi_conversations = st.toggle("reset converations")  # reset chatter input
-
-
-# aufbau
-# user, eot, role
-# assistant, eot, role
-
-def empty_list(type: str) -> list[list[str]]:
-    a = []
-    for _ in range(st.session_state.amount_of_responses):
-        if type == "assistant":
-            a.append([])
-    return a
-
-
 def disable_altering():
     st.session_state.disable_amount_responses = True
 
@@ -170,7 +134,8 @@ def main():
     with col1:
         start_computation = st.button("Start computation")
     with col2:
-        st.button("Reset", on_click=clear_cache())
+        if st.button("Reset"):
+            clear_cache(True)
 
     if start_computation:
         st.session_state.count += 1
