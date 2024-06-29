@@ -11,11 +11,11 @@ if 'has_finished' not in st.session_state:
 if 'amount_responses' not in st.session_state:
     st.session_state.amount_of_responses = 3
 if 'response' not in st.session_state:
-    st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # current responses
-if 'all_user_messages' not in st.session_state:
-    st.session_state.all_user_messages = []  # [['' for _ in range(1)] for _ in range(st.session_state.amount_responses)]
-if 'all_assistant_messages' not in st.session_state:
-    st.session_state.all_assistant_messages = [[], [], []]  # [['' for _ in range(1)] for _ in range(st.session_state.amount_responses)]
+    st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # CURRENT response
+if 'user_msgs' not in st.session_state:
+    st.session_state.user_msgs = [""]  # ALL inputs
+if 'assistant_msgs' not in st.session_state:
+    st.session_state.assistant_msgs = [[""], [""], [""]]  # ALL responses
 if 'prompt' not in st.session_state:
     st.session_state.prompt = ""
 if 'disallow_multi_conversation' not in st.session_state:
@@ -26,6 +26,8 @@ if 'amount_of_inputs' not in st.session_state:
     st.session_state.amount_of_inputs = 0
 if 'disable_amount_responses' not in st.session_state:
     st.session_state.disable_amount_responses = False
+if 'count' not in st.session_state:
+    st.session_state.count = 0
 
 # tweak-able parameters for llama3 generate
 st.session_state.temperature = 0.97
@@ -55,14 +57,19 @@ def system_prompt() -> str:
 def assemble_pre_prompt(idx: int) -> str:
     # get all messages in order for current conversation thread
     prompt: str = system_prompt()
-    for i in range(st.session_state.amount_of_inputs):
-        prompt += st.session_state.all_user_messages[i]
+    for i in range(st.session_state.count):
+        st.write("in preprompt")
+        st.write(st.session_state.user_msgs)
+        st.write(st.session_state.assistant_msgs)
+        st.write("after preprompt")
+        prompt += st.session_state.user_msgs[i] if st.session_state.user_msgs[idx] else ""  # is changing
         prompt += end_token_input
-        prompt += str(Roles.assistant.value)  # corresponding to the next message type
+        prompt += str(Roles.assistant.value)
 
-        prompt += st.session_state.all_assistant_messages[idx][i]
+        prompt += st.session_state.assistant_msgs[idx][i] if st.session_state.assistant_msgs else "" # is changing
         prompt += end_token_input
         prompt += str(Roles.user.value)
+    st.write(prompt)
     return prompt
 
 
@@ -83,6 +90,8 @@ def stream_response(idx: int):
     for chunk in response:
         st.session_state.response[idx] += chunk.get("response")
         yield chunk.get("response")
+        if chunk.get("done"):
+            st.session_state.has_finished = True
 
 
 with st.sidebar:
@@ -116,50 +125,85 @@ def disable_altering():
     st.session_state.disable_amount_responses = True
 
 
+original_passage = ["There is nothing of all this in \"The King of the Golden River.\" Unlike his other works, it was written merely to entertain. Scarcely that, since it was not written for publication at all, but to meet a challenge set him by a young girl."]
+gapped_passage = ["- - - - - - - - - - - - - - his other works, it was written merely to entertain. Scarcely that, since it was not written for publication at all, but to meet a challenge set him by a young girl."]
+testing_message = ["I am alpha", "I am bert", "I am chirby", "I am dirk", "I am einstein", "I am frank", "I am gerald", "I am heist"]
+
+gapped_passage[0].replace('-', '\-')
+gapped_passage[0].replace('.', '\\.')
+
 def main():
     st.logo("https://ollama.com/public/ollama.png")
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
 
     if st.session_state.disallow_multi_conversations:
         st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]
-        st.session_state.all_user_messages = empty_list("user")
-        st.session_state.all_assistant_messages = empty_list("assistant")
+        st.session_state.user_msgs = empty_list("user")
+        st.session_state.assistant_msgs = empty_list("assistant")
         st.session_state.amount_of_inputs = 0
         st.session_state.disable_amount_responses = False
 
-    st.session_state.prompt = st.chat_input(placeholder="Your message", key="prompt_input", disabled=False, on_submit=disable_altering)
+    col1, col2 = st.columns(2)
+    with col1:
+        start_computation = st.button("Start computation")
+    with col2:
+        reset_count = st.button("Reset")
+    if start_computation:
 
-    # show previous responses like
-    # print chat message, print #amount of responses from same index repeat
-    for i in range(st.session_state.amount_of_inputs):  # corresponds to first up to previous
-        with st.chat_message(name="user", avatar="user"):
-            st.write(st.session_state.all_user_messages[i])
-        for j in range(st.session_state.amount_of_responses):
-            with st.chat_message(name="assistant", avatar="assistant"):
-                st.write(st.session_state.all_assistant_messages[j][i])
+        st.session_state.count += 1
+        st.write("st count is:", st.session_state.count)
 
-    if st.session_state.prompt:
-        with st.chat_message(name="assistant", avatar="user"):
-            st.write(st.session_state.prompt)
-        for i in range(st.session_state.amount_of_responses):
-            with st.chat_message(name="assistant", avatar="assistant"):
-                st.write(stream_response(i))
-            print("appending:", st.session_state.response[i])
-            st.session_state.all_assistant_messages[i].append(st.session_state.response[i])  # increase size by one and fill with response
+        # with nth count go to nth gapped_passage entry
+        st.session_state.prompt = testing_message[st.session_state.count]
+        st.write("sessionstate prompt is:", st.session_state.prompt)
+        assemble_pre_prompt(0)
 
-            st.session_state.something_downloadable = True
-        st.session_state.all_user_messages.append(st.session_state.prompt)
-        st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # empty responses
-        st.session_state.amount_of_inputs += 1
+        # generate text for nth passage entry
+        if not st.session_state.has_finished:
+            stream_response(0)
+        else:
+            # prepare new cycle
+            st.session_state.user_msgs.append(testing_message[st.session_state.count])  # static
+            st.session_state.assistant_msgs[0].append(st.session_state.response[0])
 
-    if st.session_state.something_downloadable:
-        st.download_button("download responses", "\n\n".join([assemble_pre_prompt(i) for i in range(st.session_state.amount_of_responses)]))
+        st.write(st.session_state.response[0][-1])
+        # append everything
+
+
+        if f'response{0}' in st.session_state:
+            st.session_state.assistant_msgs[0].append(st.query_params[f"response{0}"])
+
+    if reset_count:
+        st.session_state.count = 0
+
+
+
+
+    # for i in range(st.session_state.amount_of_inputs):  # corresponds to first up to previous
+    #     with st.chat_message(name="user", avatar="user"):
+    #         st.write(st.session_state.all_user_messages[i])
+    #     for j in range(st.session_state.amount_of_responses):
+    #         with st.chat_message(name="assistant", avatar="assistant"):
+    #             st.write(st.session_state.all_assistant_messages[j][i])
+    #
+    # if st.session_state.prompt:
+    #     with st.chat_message(name="assistant", avatar="user"):
+    #         st.write(st.session_state.prompt)
+    #     for i in range(st.session_state.amount_of_responses):
+    #         with st.chat_message(name="assistant", avatar="assistant"):
+    #             st.write(stream_response(i))
+    #         print("appending:", st.session_state.response[i])
+    #         st.session_state.all_assistant_messages[i].append(st.session_state.response[i])  # increase size by one and fill with response
+    #
+    #         st.session_state.something_downloadable = True
+    #     st.session_state.all_user_messages.append(st.session_state.prompt)
+    #     st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # empty responses
+    #     st.session_state.amount_of_inputs += 1
+    #
+    # if st.session_state.something_downloadable:
+    #     st.download_button("download responses", "\n\n".join([assemble_pre_prompt(i) for i in range(st.session_state.amount_of_responses)]))
 
 
 # Run the main function
 
-pg = st.navigation([
-    st.Page(main, title="Llama3-Chat", icon="🦙", url_path="lion"),
-    st.Page(st_dataset_v1.main, title="Preprocessing", icon=":material/travel_explore:", url_path="tiger"),
-])
-pg.run()
+main()
