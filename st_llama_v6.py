@@ -1,3 +1,5 @@
+import random
+
 import streamlit as st
 from ollama import generate
 from enum import Enum
@@ -54,13 +56,17 @@ with st.sidebar:
     if st.session_state.amount_of_responses > 10:
         st.image(
             'https://i.kym-cdn.com/entries/icons/original/000/000/043/dg1.jpg')
-    st.session_state.system = st.text_area("System prompt (e.g. preprompt - instructions)", key="system_input", value=system)
+    s1 = st.text_input("question 1", key="q1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
+    q1 = st.text_input("question 1", key="q1", value="Correct this text. Only respond with the corrected text. Do not add any summarization.")
+    q2 = st.text_input("question 2", key="q2", value="Try to improve on your text!")
+    q3 = st.text_input("question 3", key="q3", value="Improve your text further!")
     st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
     st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=128, max_value=2048)
     st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
 
     st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
     st.session_state.seed = st.slider("seed", 0, 128, 69)
+    random.seed(st.session_state.seed)
 
     st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=False)
 
@@ -114,25 +120,15 @@ def stream_response(idx: int):
             st.session_state.has_finished = True
 
 
-
-
-original_passage = ["There is nothing of all this in \"The King of the Golden River.\" Unlike his other works, it was written merely to entertain. Scarcely that, since it was not written for publication at all, but to meet a challenge set him by a young girl."]
-gapped_passage = ["- - - - - - - - - - - - - - his other works, it was written merely to entertain. Scarcely that, since it was not written for publication at all, but to meet a challenge set him by a young girl."]
-testing_message = ["I am alpha", "I am bert", "I am chirby", "I am dirk", "I am einstein", "I am frank", "I am gerald", "I am heist"]
-
-gapped_passage[0].replace('-', '\-')
-gapped_passage[0].replace('.', '\\.')
-
-
 def main():
     # title
     st.logo("https://ollama.com/public/ollama.png")
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
 
     html = ds.scrape_webpage("https://www.gutenberg.org/files/701/701-h/701-h.htm#chap01") # collect_website
-    content = ds.extract_content(html)
-    content = ds.process_text(content)
-    testing_message = [ds.create_gaps(s, st.session_state.mask_rate) for s in content]
+    content = ds.extract_content(html)  # initial text
+    content = ds.process_text(content)  # split into paragraphs
+    testing_message = [ds.create_gaps(s, st.session_state.mask_rate) for s in content]  # remove parts based on seed etc.
 
     # buttons
     col1, col2 = st.columns(2)
@@ -151,7 +147,6 @@ def main():
             except IndexError:
                 st.session_state.user_msgs.append("")
 
-            # TODO: assuming the assistant_msgs has the correct vertical size
             for assistant in st.session_state.assistant_msgs:
                 try:
                     assistant[st.session_state.count]

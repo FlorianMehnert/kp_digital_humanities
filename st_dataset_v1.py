@@ -68,6 +68,9 @@ def remove_headlines_etc(paragraphs: list[str]) -> list[str]:
 
 @st.cache_data
 def process_text(full_text: str | list[str]) -> list[str]:
+    """
+    split into paragraphs and remove headlines etc.
+    """
     temp_text: list[str]
     if type(full_text) is str:
         temp_text = split_by_paragraph(full_text.strip())
