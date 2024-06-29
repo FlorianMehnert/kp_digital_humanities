@@ -33,7 +33,7 @@ def clear_cache(full_reset=True):
     if 'disable_amount_responses' not in st.session_state:
         st.session_state.disable_amount_responses = False
     if 'count' not in st.session_state:
-        st.session_state.count = 0
+        st.session_state.count = -1
 
 
 clear_cache(False)
@@ -138,7 +138,7 @@ def main():
             clear_cache(True)
 
     if start_computation:
-        st.session_state.count += 1
+        st.session_state.count += 1  # using this to access current position in msgs arrays
 
         # increment message array sizes
         try:
@@ -158,6 +158,9 @@ def main():
         # with nth count go to nth gapped_passage entry
         st.session_state.prompt = testing_message[st.session_state.count]
         st.write("session state prompt is:", st.session_state.prompt)
+
+        st.write(st.session_state.user_msgs)
+        st.write(st.session_state.assistant_msgs)
         assemble_pre_prompt(0)
 
         # generate text for nth passage entry
