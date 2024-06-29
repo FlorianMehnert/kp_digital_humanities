@@ -19,9 +19,9 @@ def clear_cache(full_reset=True):
     if 'response' not in st.session_state:
         st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # CURRENT response
     if 'user_msgs' not in st.session_state:
-        st.session_state.user_msgs = [""]  # ALL inputs
+        st.session_state.user_msgs = []  # ALL inputs
     if 'assistant_msgs' not in st.session_state:
-        st.session_state.assistant_msgs = [[""], [""], [""]]  # ALL responses
+        st.session_state.assistant_msgs = [[], [], []]  # ALL responses
     if 'prompt' not in st.session_state:
         st.session_state.prompt = ""
     if 'disallow_multi_conversation' not in st.session_state:
@@ -78,8 +78,7 @@ def system_prompt() -> str:
 def assemble_pre_prompt(idx: int) -> str:
     # get all messages in order for current conversation thread
     prompt: str = system_prompt()
-    for i in range(st.session_state.count):
-        st.write("in preprompt, len user:", len(st.session_state.user_msgs), "len bots:", [len(a) for a in st.session_state.assistant_msgs])
+    for i in range(st.session_state.count+1):
         prompt += st.session_state.user_msgs[i] if st.session_state.user_msgs[idx] else ""  # is changing
         prompt += end_token_input
         prompt += str(Roles.assistant.value)
@@ -87,7 +86,6 @@ def assemble_pre_prompt(idx: int) -> str:
         prompt += st.session_state.assistant_msgs[idx][i] if st.session_state.assistant_msgs else ""  # is changing
         prompt += end_token_input
         prompt += str(Roles.user.value)
-    st.write("finished preprompt:", prompt)
     return prompt
 
 
@@ -159,15 +157,17 @@ def main():
         st.session_state.prompt = testing_message[st.session_state.count]
         st.write("session state prompt is:", st.session_state.prompt)
 
-        st.write(st.session_state.user_msgs)
-        st.write(st.session_state.assistant_msgs)
-        assemble_pre_prompt(0)
+        # add user msg
+        st.session_state.user_msgs[st.session_state.count] = st.session_state.prompt
+
+        st.write("**starting to generate**", st.session_state.has_finished)
 
         # generate text for nth passage entry
         if not st.session_state.has_finished:
-            stream_response(0)
+            st.write(stream_response(0))
         else:
             # prepare new cycle
+            st.write("ended")
             st.session_state.user_msgs.append(testing_message[st.session_state.count])  # static
             st.session_state.assistant_msgs[0].append(st.session_state.response[0])
 
