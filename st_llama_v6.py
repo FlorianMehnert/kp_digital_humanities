@@ -41,6 +41,7 @@ start_token = "<|start_header_id|>"
 end_token_role = "<|end_header_id|>"
 end_token_input = "<|eot_id|>"
 
+
 def clear_cache():
     keys = list(st.session_state.keys())
     for key in keys:
@@ -68,6 +69,7 @@ def clear_cache():
         st.session_state.disable_amount_responses = False
     if 'count' not in st.session_state:
         st.session_state.count = 0
+
 
 class Roles(Enum):
     system: str = f"{start_token}system{end_token_role}\n"
@@ -190,7 +192,7 @@ def main():
 
         # with nth count go to nth gapped_passage entry
         st.session_state.prompt = testing_message[st.session_state.count]
-        st.write("sessionstate prompt is:", st.session_state.prompt)
+        st.write("session state prompt is:", st.session_state.prompt)
         assemble_pre_prompt(0)
 
         # generate text for nth passage entry
@@ -201,36 +203,8 @@ def main():
             st.session_state.user_msgs.append(testing_message[st.session_state.count])  # static
             st.session_state.assistant_msgs[0].append(st.session_state.response[0])
 
-        # append everything
-
         if f'response{0}' in st.session_state:
             st.session_state.assistant_msgs[0].append(st.query_params[f"response{0}"])
 
-    # for i in range(st.session_state.amount_of_inputs):  # corresponds to first up to previous
-    #     with st.chat_message(name="user", avatar="user"):
-    #         st.write(st.session_state.all_user_messages[i])
-    #     for j in range(st.session_state.amount_of_responses):
-    #         with st.chat_message(name="assistant", avatar="assistant"):
-    #             st.write(st.session_state.all_assistant_messages[j][i])
-    #
-    # if st.session_state.prompt:
-    #     with st.chat_message(name="assistant", avatar="user"):
-    #         st.write(st.session_state.prompt)
-    #     for i in range(st.session_state.amount_of_responses):
-    #         with st.chat_message(name="assistant", avatar="assistant"):
-    #             st.write(stream_response(i))
-    #         print("appending:", st.session_state.response[i])
-    #         st.session_state.all_assistant_messages[i].append(st.session_state.response[i])  # increase size by one and fill with response
-    #
-    #         st.session_state.something_downloadable = True
-    #     st.session_state.all_user_messages.append(st.session_state.prompt)
-    #     st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # empty responses
-    #     st.session_state.amount_of_inputs += 1
-    #
-    # if st.session_state.something_downloadable:
-    #     st.download_button("download responses", "\n\n".join([assemble_pre_prompt(i) for i in range(st.session_state.amount_of_responses)]))
-
-
-# Run the main function
 
 main()
