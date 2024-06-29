@@ -1,5 +1,5 @@
 import streamlit as st
-from pages.LLM.Controler import Controller
+from pages_.LLM.Controler import Controller
 
 system = "You are an assistant. You try to find characters that do not belong in the given sentence. Only respond with the corrected sentence. Do not add any summarization."
 
@@ -11,9 +11,9 @@ if 'amount_of_responses' not in st.session_state:
 if 'response' not in st.session_state:
     st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # current responses
 if 'all_user_messages' not in st.session_state:
-    st.session_state.all_user_messages = []  # [['' for _ in range(1)] for _ in range(st.session_state.amount_responses)]
+    st.session_state.user_msgs = []  # [['' for _ in range(1)] for _ in range(st.session_state.amount_responses)]
 if 'all_assistant_messages' not in st.session_state:
-    st.session_state.all_assistant_messages = [[], [], []]  # [['' for _ in range(1)] for _ in range(st.session_state.amount_responses)]
+    st.session_state.assistant_msgs = [[], [], []]  # [['' for _ in range(1)] for _ in range(st.session_state.amount_responses)]
 if 'prompt' not in st.session_state:
     st.session_state.prompt = ""
 if 'disallow_multi_conversation' not in st.session_state:

@@ -27,7 +27,7 @@ css = '''
 
 # Function to scrape the webpage
 @st.cache_data(ttl=86400)  # cache for one day lul
-def scrape_webpage(url):
+def scrape_webpage_v1(url):
     response = requests.get(url)
     if response.status_code == 200:
         return response.text
@@ -171,7 +171,7 @@ def main():
         st.info("the current masking function can remove dots")
     random.seed(st.session_state.seed)
     # collect data
-    html = scrape_webpage("https://www.gutenberg.org/files/701/701-h/701-h.htm#chap01")
+    html = scrape_webpage_v1("https://www.gutenberg.org/files/701/701-h/701-h.htm#chap01")
     content = extract_content(html)
     content = process_text(content)
 
@@ -198,4 +198,6 @@ def main():
                 g.replace('.', '\\.')
                 col3.write(g)
 
-main()
+
+if __name__ == '__main__':
+    main()

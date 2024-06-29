@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from pages.LLM.Prompt import Prompt
+from pages_.LLM.Prompt import Prompt
 import streamlit as st
 
 

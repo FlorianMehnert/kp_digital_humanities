@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from ollama import generate
-from pages.LLM.Roles import Roles
+from pages_.LLM.Roles import Roles
 
 # construct llama3 prompts
 begin_token = "<|begin_of_text|>"
