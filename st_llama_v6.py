@@ -56,9 +56,9 @@ with st.sidebar:
     st.logo('logo.svg')
     with st.expander("**Predefined questions**"):
         s1 = st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
-        q1 = st.text_input("question 1", key="q0", value="In the provided text missing words are marked with a minus sign. Insert the missing words. Only respond with the corrected text. Do not add any summarization.")
-        q2 = st.text_input("question 2", key="q1", value="Try to improve on your text!")
-        q3 = st.text_input("question 3", key="q2", value="Improve your text further!")
+        q1 = st.text_area("question 1", key="q0", value="In the provided text missing words are marked with a minus sign. Insert the missing words. Only respond with the corrected text. Do not add any summarization.")
+        q2 = st.text_area("question 2", key="q1", value="Try to improve on your text!")
+        q3 = st.text_area("question 3", key="q2", value="Improve your text further!")
     # predefine user input OwO
     st.session_state.user_msgs = [st.session_state[f'{key}'] for key in st.session_state.keys() if key.startswith("q")]
     st.session_state.response = ["" for _ in range(len(st.session_state.user_msgs))]
