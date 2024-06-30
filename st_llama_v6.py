@@ -60,7 +60,7 @@ with st.sidebar:
         q2 = st.text_input("question 2", key="q1", value="Try to improve on your text!")
         q3 = st.text_input("question 3", key="q2", value="Improve your text further!")
     # predefine user input OwO
-    st.session_state.user_msgs = [key for key in st.session_state.keys() if key.startswith("q")]
+    st.session_state.user_msgs = [st.session_state[f'{key}'] for key in st.session_state.keys() if key.startswith("q")]
     with st.expander("**LLM Parameters**"):
         st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
         st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=128, max_value=2048)
@@ -122,16 +122,6 @@ def stream_response(idx: int):
             st.session_state.has_finished = True
 
 
-def provide_current_user_input(idx: int):
-    """
-    general inputs consist of system input (stays fixed) and user inputs (can be overwritten later)
-    user input are defined as chain of thoughts in the predefined questions section
-    based on the current count select the correct question e.g. count is 0 select st.session_state.q1
-    """
-    if f"q{idx}" in st.session_state:
-        return st.session_state[f'q{idx}']  # :O
-
-
 def main():
     # title
     st.logo("https://ollama.com/public/ollama.png")
@@ -149,9 +139,12 @@ def main():
         if pre_stop > 1:
             break
         pre_stop += 1
-        st.session_state.system = st.session_state.s1 + paragraph  # add user prompt and system message
-        with st.chat_message("system", avatar="system.svg"):
-            st.write(st.session_state['s1'] + paragraph)
+        if start_computation:
+            st.session_state.system = st.session_state.s1 + "The following text is missing some words. Please correct it:\n **" + paragraph + "**\n"  # add user prompt and system message
+            with st.chat_message("system", avatar="system.svg"):
+                st.subheader("systemprompt")
+                st.write(st.session_state.system)
+            st.session_state.count = -1
         for question_number in range(len(st.session_state.user_msgs)):
             if start_computation:
                 if st.session_state.has_finished:  # completed once
