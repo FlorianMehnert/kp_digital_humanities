@@ -56,11 +56,13 @@ with st.sidebar:
     st.logo('logo.svg')
     with st.expander("**Predefined questions**"):
         s1 = st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
-        q1 = st.text_area("question 1", key="q0", value="In the provided text missing words are marked with a minus sign. Insert the missing words. Only respond with the corrected text. Do not add any summarization.")
-        q2 = st.text_area("question 2", key="q1", value="Try to improve on your text!")
-        q3 = st.text_area("question 3", key="q2", value="Improve your text further!")
+        q1 = st.text_area("question 1", key="q1", value="In the provided text missing words are marked with a minus sign. Insert the missing words. Only respond with the corrected text. Do not add any summarization.")
+        q2 = st.text_area("question 2", key="q2", value="Improve your text further!")
+        q3 = st.text_area("question 3", key="q3", value="Try to improve on your text!")
+
     # predefine user input OwO
-    st.session_state.user_msgs = [st.session_state[f'{key}'] for key in st.session_state.keys() if key.startswith("q")]
+    sorted_keys = sorted((key for key in st.session_state if key.startswith("q")), key=lambda x: int(x[1:]))
+    st.session_state.user_msgs = [st.session_state[key] for key in sorted_keys]
     st.session_state.response = ["" for _ in range(len(st.session_state.user_msgs))]
 
     with st.expander("**LLM Parameters**"):
@@ -177,7 +179,6 @@ def main():
 
                     with st.chat_message("assistant"):
                         st.write(stream_response(st.session_state.count - 1))
-    st.write(st.session_state.q1)
 
 
 if __name__ == "__main__":
