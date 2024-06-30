@@ -30,8 +30,8 @@ streamlit run st_llama_v6.py
 
 if you run the app using `streamlit run llama.py` your app should look like this:
 
-![app startup](images/v6_top.svg)
+![app startup](images/v6_top_annotated.png)
 upon entering the start computation button the llm tries to answer your predefined questions based on the paragraphs in the original text.
-![system prompt](images/v6_system_prompt.svg)
+![system prompt](images/v6_system_prompt_annotated.png)
 questions entered in the sidebar are answered one by one upon finishing the current generation process
-![system prompt](images/v6_answering.svg)
+![system prompt](images/v6_answering_annotated.png)
