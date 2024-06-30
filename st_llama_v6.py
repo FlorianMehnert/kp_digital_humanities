@@ -144,7 +144,7 @@ def main():
             break
         pre_stop += 1
         if start_computation:
-            st.session_state.system = st.session_state.s1 + "The following text is missing some words. Please correct it:\n **" + paragraph + "**\n"  # add user prompt and system message
+            st.session_state.system = st.session_state.s1 + "**" + paragraph + "**\n"  # add user prompt and system message
             with st.chat_message("system", avatar="system.svg"):
                 st.subheader("system prompt")
                 st.write(st.session_state.system)

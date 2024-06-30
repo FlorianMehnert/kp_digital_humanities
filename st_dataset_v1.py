@@ -40,6 +40,7 @@ def extract_content(html) -> list[str]:
     soup = BeautifulSoup(html, 'html.parser')
     # Example: Extract all paragraphs
     paragraphs = soup.find_all('p')
+    paragraphs = paragraphs[10:]
     return [p.get_text() for p in paragraphs]
 
 
