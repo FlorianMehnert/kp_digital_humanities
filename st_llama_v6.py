@@ -19,7 +19,7 @@ def clear_cache(full_reset=True):
     if 'amount_responses' not in st.session_state:
         st.session_state.amount_of_responses = 3
     if 'response' not in st.session_state:
-        st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]  # CURRENT response
+        st.session_state.response = [""]  # CURRENT RESPONSE
     if 'user_msgs' not in st.session_state:
         st.session_state.user_msgs = []  # ALL inputs
     if 'assistant_msgs' not in st.session_state:
@@ -42,7 +42,7 @@ clear_cache(False)
 
 # tweak-able parameters for llama3 generate
 st.session_state.temperature = 0.97
-st.session_state.num_predict = 128
+st.session_state.num_predict = 2048
 st.session_state.top_p = 0.9
 st.session_state.something_downloadable = False
 
@@ -56,21 +56,21 @@ with st.sidebar:
     st.logo('logo.svg')
     with st.expander("**Predefined questions**"):
         s1 = st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
-        q1 = st.text_input("question 1", key="q0", value="Correct this text. Only respond with the corrected text. Do not add any summarization.")
+        q1 = st.text_input("question 1", key="q0", value="In the provided text missing words are marked with a minus sign. Insert the missing words. Only respond with the corrected text. Do not add any summarization.")
         q2 = st.text_input("question 2", key="q1", value="Try to improve on your text!")
         q3 = st.text_input("question 3", key="q2", value="Improve your text further!")
     # predefine user input OwO
     st.session_state.user_msgs = [st.session_state[f'{key}'] for key in st.session_state.keys() if key.startswith("q")]
+    st.session_state.response = ["" for _ in range(len(st.session_state.user_msgs))]
+
     with st.expander("**LLM Parameters**"):
         st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
-        st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=128, max_value=2048)
+        st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=512, max_value=2048)
         st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
     with st.expander("**Obfuscation Parameters**"):
         st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
         st.session_state.seed = st.slider("seed", 0, 128, 69)
         random.seed(st.session_state.seed)
-
-    st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=False)
 
 
 class Roles(Enum):
@@ -120,6 +120,8 @@ def stream_response(idx: int):
         yield chunk.get("response")
         if chunk.get("done"):
             st.session_state.has_finished = True
+            if chunk.get("done_reason") == "length":
+                st.warning("Please increase the LLM Parameter Max tokens")
 
 
 def main():
@@ -135,14 +137,14 @@ def main():
     # buttons
     start_computation = st.button("Start computation")
     pre_stop = 0
-    for paragraph in paragraphs:
+    for paragraph, paragraph_number in zip(paragraphs, range(len(paragraphs))):
         if pre_stop > 1:
             break
         pre_stop += 1
         if start_computation:
             st.session_state.system = st.session_state.s1 + "The following text is missing some words. Please correct it:\n **" + paragraph + "**\n"  # add user prompt and system message
             with st.chat_message("system", avatar="system.svg"):
-                st.subheader("systemprompt")
+                st.subheader("system prompt")
                 st.write(st.session_state.system)
             st.session_state.count = -1
         for question_number in range(len(st.session_state.user_msgs)):
@@ -164,14 +166,17 @@ def main():
                     st.session_state.has_finished = False
 
                     # appending response from previous iteration
-                    st.session_state.assistant_msgs[0][st.session_state.count - 1] = st.session_state.response[0]
+                    st.session_state.assistant_msgs[paragraph_number][st.session_state.count - 1] = st.session_state.response[paragraph_number]
 
-                    st.session_state.response = ["" for _ in range(st.session_state.amount_of_responses)]
+                    st.session_state.response = ["" for _ in range(len(st.session_state.user_msgs))]
 
                 # generate text for nth passage entry
                 if not st.session_state.has_finished:
+                    with st.chat_message("user"):
+                        st.write(st.session_state.user_msgs[st.session_state.count - 1])
+
                     with st.chat_message("assistant"):
-                        st.write(stream_response(0))
+                        st.write(stream_response(st.session_state.count - 1))
     st.write(st.session_state.q1)
 
 
