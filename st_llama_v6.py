@@ -146,10 +146,12 @@ def main():
     start_computation = st.button("Start computation")
     pre_stop = 0
     for paragraph in paragraphs:
-        if pre_stop > 2:
+        if pre_stop > 1:
             break
         pre_stop += 1
         st.session_state.system = st.session_state.s1 + paragraph  # add user prompt and system message
+        with st.chat_message("system", avatar="system.svg"):
+            st.write(st.session_state['s1'] + paragraph)
         for question_number in range(len(st.session_state.user_msgs)):
             if start_computation:
                 if st.session_state.has_finished:  # completed once
@@ -175,7 +177,8 @@ def main():
 
                 # generate text for nth passage entry
                 if not st.session_state.has_finished:
-                    st.write(stream_response(0))
+                    with st.chat_message("assistant"):
+                        st.write(stream_response(0))
     st.write(st.session_state.q1)
 
 
