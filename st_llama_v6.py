@@ -173,7 +173,7 @@ def main():
                 # generate text for nth passage entry
                 if not st.session_state.has_finished:
                     with st.chat_message("user"):
-                        st.write(st.session_state.user_msgs[st.session_state.count - 1])
+                        st.write(st.session_state.user_msgs[st.session_state.count])
 
                     with st.chat_message("assistant"):
                         st.write(stream_response(st.session_state.count - 1))
