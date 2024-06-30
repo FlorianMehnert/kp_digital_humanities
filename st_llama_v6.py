@@ -53,20 +53,20 @@ end_token_role = "<|end_header_id|>"
 end_token_input = "<|eot_id|>"
 
 with st.sidebar:
-    if st.session_state.amount_of_responses > 10:
-        st.image(
-            'https://i.kym-cdn.com/entries/icons/original/000/000/043/dg1.jpg')
-    s1 = st.text_input("question 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
-    q1 = st.text_input("question 1", key="q1", value="Correct this text. Only respond with the corrected text. Do not add any summarization.")
-    q2 = st.text_input("question 2", key="q2", value="Try to improve on your text!")
-    q3 = st.text_input("question 3", key="q3", value="Improve your text further!")
-    st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
-    st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=128, max_value=2048)
-    st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
-
-    st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
-    st.session_state.seed = st.slider("seed", 0, 128, 69)
-    random.seed(st.session_state.seed)
+    st.logo('https://i.kym-cdn.com/entries/icons/original/000/000/043/dg1.jpg')
+    with st.expander("**Predefined questions**"):
+        s1 = st.text_input("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
+        q1 = st.text_input("question 1", key="q1", value="Correct this text. Only respond with the corrected text. Do not add any summarization.")
+        q2 = st.text_input("question 2", key="q2", value="Try to improve on your text!")
+        q3 = st.text_input("question 3", key="q3", value="Improve your text further!")
+    with st.expander("**LLM Parameters**"):
+        st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
+        st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=128, max_value=2048)
+        st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
+    with st.expander("**Obfuscation Parameters**"):
+        st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
+        st.session_state.seed = st.slider("seed", 0, 128, 69)
+        random.seed(st.session_state.seed)
 
     st.session_state.amount_of_responses = st.slider("amount of responses", min_value=1, value=3, max_value=50, key="response_slider", disabled=False)
 
