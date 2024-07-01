@@ -124,7 +124,22 @@ with st.sidebar:
         st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
         st.session_state.seed = st.slider("seed", 0, 128, 69)
         random.seed(st.session_state.seed)
-
+    with st.expander("**Debug**"):
+        col1, col2 = st.columns(2)
+        option = st.selectbox("Which data do you want to display?",("assistant_msgs", "user_msgs", "ground_truth", "gapped_results"))
+        depth = lambda L: isinstance(L, list) and max(map(depth, L)) + 1
+        try:
+            with col1:
+                column = st.number_input("column", step=1)
+            with col2:
+                row = st.number_input("row", step=1)
+            if depth(st.session_state[option]) == 1:
+                st.info("only column influences data")
+                st.write(st.session_state[option][int(column)])
+            elif depth(st.session_state[option]) == 2:
+                st.write(st.session_state[option][int(column)][int(row)])
+        except Exception as e:
+            st.warning(e)
 
 class Roles(Enum):
     system: str = f"{start_token}system{end_token_role}\n"
@@ -250,25 +265,30 @@ def main():
     plot_diagram = st.button("Plot diagram")
     if plot_diagram:
         # Calculate BERTScores
-        first_answers = [item[0] for item in st.session_state.assistant_msgs]
-        results = bertscore.compute(predictions=first_answers, references=st.session_state.ground_truth[:len(first_answers)], lang="en")
+        assistant_msgs_size = len(st.session_state.assistant_msgs)
 
-        # Extract F1 scores (you can also use 'precision' or 'recall' instead of 'f1')
-        bert_scores = results['f1']
+        # calculate all bertscores (outer list contains assistant_msgs_idx; inner list contains refinement_idx: [[q1, q2, q3],[q1, q2, q3],[q1, q2, q3]] where [p1, p2, p3])
+        all_bert_scores = []
+        for answer_index in range(len(st.session_state.user_msgs)):
+            current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
+            all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_question, references=st.session_state.ground_truth[:assistant_msgs_size], lang="en")['f1'])
 
-        meteor_scores = [meteor.compute(predictions=[altered], references=[original])['meteor']
-                         for original, altered in zip(st.session_state.ground_truth[:len(first_answers)], first_answers)]
+        all_meteor_scores = []
 
-        bleu_scores = [calculate_bleu(original, altered)
-                       for original, altered in zip(st.session_state.ground_truth[:len(first_answers)], first_answers)]
+        for answer_index in range(len(st.session_state.user_msgs)):
+            current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
+            all_meteor_scores.append([meteor.compute(predictions=[predicted], references=[grount_truth])['meteor'] for grount_truth, predicted in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
 
-        # Calculate average score
-        average_score = np.mean(bert_scores)
-        print(f"Average BERTScore: {average_score:.4f}")
+        all_bleu_scores = []
+        for answer_index in range(len(st.session_state.user_msgs)):
+            current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
+            all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
+
         fig = go.Figure()
-        for i in range(len(bert_scores)):
-            fig.add_trace(go.Bar(name=f'Pair {i + 1}', x=['BERTScore', 'METEOR', 'BLEU'],
-                                 y=[bert_scores[i], meteor_scores[i], bleu_scores[i]]))
+        for i in range(len(all_bert_scores)):
+            for j in range(len(st.session_state.user_msgs)):
+                fig.add_trace(go.Bar(name=f'sec {i + 1} q {j + 1}', x=['BERTScore', 'METEOR', 'BLEU'],
+                                     y=[all_bert_scores[i][j], all_meteor_scores[i][j], all_bleu_scores[i][j]]))
         fig.update_layout(
             title="Similarity Scores for Sentence Pairs",
             xaxis_title="Score Type",
