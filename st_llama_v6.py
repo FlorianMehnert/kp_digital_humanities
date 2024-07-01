@@ -7,8 +7,50 @@ import st_dataset_v1 as ds
 from evaluate import load
 import numpy as np
 import plotly.graph_objects as go
+from collections import Counter
+from nltk.util import ngrams
+
+from nltk.translate.bleu_score import sentence_bleu
+from nltk.tokenize import word_tokenize
+import nltk
+
+# Download necessary NLTK data
+nltk.download('punkt', quiet=True)
+
+
+# Load the metrics
+@st.cache_resource
+def load_metrics():
+    return load("bertscore"), load("meteor")
+
+
+bertscore, meteor = load_metrics()
 
 system = "You are an assistant. You try to find characters that do not belong in the given sentence. Only respond with the corrected sentence. Do not add any summarization."
+
+def calculate_bleu(reference, candidate, max_n=4):
+    def count_ngrams(sentence, n):
+        return Counter(ngrams(sentence, n))
+
+    ref_tokens = nltk.word_tokenize(reference.lower())
+    cand_tokens = nltk.word_tokenize(candidate.lower())
+
+    if len(cand_tokens) == 0:
+        return 0
+
+    clip_length = max(1, len(cand_tokens) - max_n + 1)
+
+    clipped_counts = {}
+    for n in range(1, max_n + 1):
+        ref_ngram_counts = count_ngrams(ref_tokens, n)
+        cand_ngram_counts = count_ngrams(cand_tokens, n)
+        clipped_counts[n] = sum(min(cand_ngram_counts[ngram], ref_ngram_counts[ngram]) for ngram in cand_ngram_counts)
+
+    brevity_penalty = min(1, np.exp(1 - len(ref_tokens) / len(cand_tokens)))
+
+    geometric_mean = np.exp(np.sum([np.log(clipped_counts[n] / max(1, len(cand_tokens) - n + 1)) for n in range(1, max_n + 1)]) / max_n)
+
+    return brevity_penalty * geometric_mean
 
 
 def clear_cache(full_reset=True):
@@ -92,11 +134,6 @@ class Roles(Enum):
 
 def system_prompt() -> str:
     return f'{begin_token}{Roles.system.value}{st.session_state.system}{end_token_input}{Roles.user.value}'
-
-
-@st.cache_resource
-def load_bertscore():
-    return load("bertscore")
 
 
 def assemble_pre_prompt(idx: int) -> str:
@@ -210,10 +247,8 @@ def main():
                     st.session_state.assistant_msgs[paragraph_number][st.session_state.count] = st.session_state.response
                     st.session_state.response = ""
 
-    bertscore = load_bertscore()
     plot_diagram = st.button("Plot diagram")
     if plot_diagram:
-
         # Calculate BERTScores
         first_answers = [item[0] for item in st.session_state.assistant_msgs]
         results = bertscore.compute(predictions=first_answers, references=st.session_state.ground_truth[:len(first_answers)], lang="en")
@@ -221,15 +256,25 @@ def main():
         # Extract F1 scores (you can also use 'precision' or 'recall' instead of 'f1')
         bert_scores = results['f1']
 
+        meteor_scores = [meteor.compute(predictions=[altered], references=[original])['meteor']
+                         for original, altered in zip(st.session_state.ground_truth[:len(first_answers)], first_answers)]
+
+        bleu_scores = [calculate_bleu(original, altered)
+                       for original, altered in zip(st.session_state.ground_truth[:len(first_answers)], first_answers)]
+
         # Calculate average score
         average_score = np.mean(bert_scores)
         print(f"Average BERTScore: {average_score:.4f}")
-        fig = go.Figure(data=[go.Bar(x=[f"Pair {i + 1}" for i in range(len(bert_scores))], y=bert_scores)])
+        fig = go.Figure()
+        for i in range(len(bert_scores)):
+            fig.add_trace(go.Bar(name=f'Pair {i + 1}', x=['BERTScore', 'METEOR', 'BLEU'],
+                                 y=[bert_scores[i], meteor_scores[i], bleu_scores[i]]))
         fig.update_layout(
-            title="BERTScores for Sentence Pairs",
-            xaxis_title="Sentence Pair",
-            yaxis_title="BERTScore",
-            yaxis_range=[0, 1]
+            title="Similarity Scores for Sentence Pairs",
+            xaxis_title="Score Type",
+            yaxis_title="Score Value",
+            yaxis_range=[0, 1],
+            barmode='group'
         )
         st.plotly_chart(fig)
 
