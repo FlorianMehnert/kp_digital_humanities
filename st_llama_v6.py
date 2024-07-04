@@ -28,6 +28,7 @@ bertscore, meteor = load_metrics()
 
 system = "You are an assistant. You try to find characters that do not belong in the given sentence. Only respond with the corrected sentence. Do not add any summarization."
 
+
 def calculate_bleu(reference, candidate, max_n=4):
     def count_ngrams(sentence, n):
         return Counter(ngrams(sentence, n))
@@ -68,7 +69,7 @@ def clear_cache(full_reset=True):
     if 'user_msgs' not in st.session_state:
         st.session_state.user_msgs = []  # ALL inputs
     if 'assistant_msgs' not in st.session_state:
-        st.session_state.assistant_msgs = [[], [], []]  # ALL responses
+        st.session_state.assistant_msgs = [[]]  # ALL responses
     if 'prompt' not in st.session_state:
         st.session_state.prompt = ""
     if 'disallow_multi_conversation' not in st.session_state:
@@ -103,13 +104,25 @@ start_token = "<|start_header_id|>"
 end_token_role = "<|end_header_id|>"
 end_token_input = "<|eot_id|>"
 
+predefined_questions = {
+    1: "In the provided text missing words are marked with a minus sign. Insert the missing words. Only respond with the corrected text. Do not add any summarization.",
+    2: "Improve your text further!",
+    3: "Try to improve on your text!"
+}
+
 with st.sidebar:
     st.logo('logo.svg')
     with st.expander("**Predefined questions**"):
         s1 = st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
-        q1 = st.text_area("question 1", key="q1", value="In the provided text missing words are marked with a minus sign. Insert the missing words. Only respond with the corrected text. Do not add any summarization.")
-        q2 = st.text_area("question 2", key="q2", value="Improve your text further!")
-        q3 = st.text_area("question 3", key="q3", value="Try to improve on your text!")
+
+        # number input -> amount of questions with key = "q"+i -> collect questions afterward
+
+        amount_of_questions = st.number_input("amount of questions", step=1, value=1)
+        for i in range(1, amount_of_questions + 1):
+            try:
+                st.text_area(f"question {i}", key=f"q{i}", value=predefined_questions[i])
+            except KeyError:
+                st.text_area(f"question {i}", key=f"q{i}", value="")
 
     # predefine user input OwO
     sorted_keys = sorted((key for key in st.session_state if key.startswith("q")), key=lambda x: int(x[1:]))
@@ -126,7 +139,7 @@ with st.sidebar:
         random.seed(st.session_state.seed)
     with st.expander("**Debug**"):
         col1, col2 = st.columns(2)
-        option = st.selectbox("Which data do you want to display?",("assistant_msgs", "user_msgs", "ground_truth", "gapped_results"))
+        option = st.selectbox("Which data do you want to display?", ("assistant_msgs", "user_msgs", "ground_truth", "gapped_results"))
         depth = lambda L: isinstance(L, list) and max(map(depth, L)) + 1
         try:
             with col1:
@@ -140,6 +153,7 @@ with st.sidebar:
                 st.write(st.session_state[option][int(column)][int(row)])
         except Exception as e:
             st.warning(e)
+
 
 class Roles(Enum):
     system: str = f"{start_token}system{end_token_role}\n"
@@ -168,7 +182,7 @@ def assemble_pre_prompt(idx: int) -> str:
     prompt += end_token_input
     prompt += str(Roles.assistant.value)
 
-    for i in range(st.session_state.count):
+    for i in range(st.session_state.count + 1):  # count usually starts with 0 -> range(0) is nothing
         prompt += st.session_state.assistant_msgs[idx][i] if st.session_state.assistant_msgs else ""  # avoiding potential exception
         prompt += end_token_input
         prompt += str(Roles.user.value)
@@ -221,11 +235,11 @@ def main():
     # displaying the scraped paragraphs
     col1, col2 = st.columns([2, 1])
     type_of_text_to_display = {
-        "original" : content,
-        "removed" : paragraphs,
+        "original": content,
+        "removed": paragraphs,
     }
     with col1:
-        paragraph_index = st.number_input(label="paragraph number", step=1)
+        paragraph_index = st.number_input(label="Start with this paragraph", step=1, )
     with col2:
         text_type = st.radio(label="which text to show", options=["original", "removed"])
     try:
@@ -272,7 +286,7 @@ def main():
                         st.write(st.session_state.user_msgs[st.session_state.count])
 
                     with st.chat_message("assistant"):
-                        st.write(stream_response(st.session_state.count))
+                        st.write(stream_response(paragraph_number))
 
                 if st.session_state.has_finished:
                     st.session_state.assistant_msgs[paragraph_number][st.session_state.count] = st.session_state.response
@@ -286,8 +300,12 @@ def main():
         # calculate all bertscores (outer list contains assistant_msgs_idx; inner list contains refinement_idx: [[q1, q2, q3],[q1, q2, q3],[q1, q2, q3]] where [p1, p2, p3])
         all_bert_scores = []
         for answer_index in range(len(st.session_state.user_msgs)):
-            current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
-            all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_question, references=st.session_state.ground_truth[:assistant_msgs_size], lang="en")['f1'])
+            current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]  # will be [q1 of paragraph1, q1 of paragraph2, ...]
+
+            # assistant msgs is correct
+            # reference stays the same for answers
+            # prediction of is the correct question
+            all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_question, references=st.session_state.ground_truth[:assistant_msgs_size], lang="en")['f1'])  # compare two sentences (pred and ref)
 
         all_meteor_scores = []
 
@@ -299,10 +317,9 @@ def main():
         for answer_index in range(len(st.session_state.user_msgs)):
             current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
             all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
-
         fig = go.Figure()
-        for i in range(len(all_bert_scores)):
-            for j in range(len(st.session_state.user_msgs)):
+        for i in range(len(st.session_state.user_msgs)):  # "i" is number of paragraph
+            for j in range(len(st.session_state.assistant_msgs)):  # j is question i
                 fig.add_trace(go.Bar(name=f'sec {i + 1} q {j + 1}', x=['BLEU', 'BERTScore', 'METEOR'],
                                      y=[all_bleu_scores[i][j], all_bert_scores[i][j], all_meteor_scores[i][j]]))
         fig.update_layout(
