@@ -218,8 +218,24 @@ def main():
     paragraphs: list[str] = [ds.create_gaps(s, st.session_state.mask_rate) for s in content]  # remove parts based on seed etc.
     st.session_state.gapped_results = paragraphs  # static
 
+    # displaying the scraped paragraphs
+    col1, col2 = st.columns([2, 1])
+    type_of_text_to_display = {
+        "original" : content,
+        "removed" : paragraphs,
+    }
+    with col1:
+        paragraph_index = st.number_input(label="paragraph number", step=1)
+    with col2:
+        text_type = st.radio(label="which text to show", options=["original", "removed"])
+    try:
+        st.write(type_of_text_to_display[text_type][paragraph_index])
+    except IndexError:
+        st.write(type_of_text_to_display[text_type][-1])
+
     # buttons
     start_computation = st.button("Start computation")
+
     pre_stop = 0
     for paragraph, paragraph_number in zip(paragraphs, range(len(paragraphs))):
         if pre_stop > 0:
