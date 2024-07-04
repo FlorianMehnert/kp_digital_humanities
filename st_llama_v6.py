@@ -88,6 +88,10 @@ def clear_cache(full_reset=True):
         st.session_state.gapped_results = []
     if 'bert_scores' not in st.session_state:
         st.session_state.bert_scores = []
+    if 'content' not in st.session_state:
+        st.session_state.content = []
+    if 'amount_of_to_be_processed_paragraphs' not in st.session_state:
+        st.session_state.amount_of_to_be_processed_paragraphs = 1
 
 
 clear_cache(False)
@@ -110,49 +114,67 @@ predefined_questions = {
     3: "Try to improve on your text!"
 }
 
-with st.sidebar:
-    st.logo('logo.svg')
-    with st.expander("**Predefined questions**"):
-        s1 = st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
 
-        # number input -> amount of questions with key = "q"+i -> collect questions afterward
-
-        amount_of_questions = st.number_input("amount of questions", step=1, value=1)
-        for i in range(1, amount_of_questions + 1):
-            try:
-                st.text_area(f"question {i}", key=f"q{i}", value=predefined_questions[i])
-            except KeyError:
-                st.text_area(f"question {i}", key=f"q{i}", value="")
-
-    # predefine user input OwO
-    sorted_keys = sorted((key for key in st.session_state if key.startswith("q")), key=lambda x: int(x[1:]))
-    st.session_state.user_msgs = [st.session_state[key] for key in sorted_keys]
-    st.session_state.response = ""
-
-    with st.expander("**LLM Parameters**"):
-        st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
-        st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=512, max_value=2048)
-        st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
-    with st.expander("**Obfuscation Parameters**"):
-        st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
-        st.session_state.seed = st.slider("seed", 0, 128, 69)
-        random.seed(st.session_state.seed)
-    with st.expander("**Debug**"):
-        col1, col2 = st.columns(2)
-        option = st.selectbox("Which data do you want to display?", ("assistant_msgs", "user_msgs", "ground_truth", "gapped_results"))
-        depth = lambda L: isinstance(L, list) and max(map(depth, L)) + 1
-        try:
-            with col1:
-                column = st.number_input("column", step=1)
+def sidebar():
+    with st.sidebar:
+        st.logo('logo.svg')
+        with st.expander("**General Stuff**"):
+            # displaying the scraped paragraphs
+            st.session_state.amount_of_to_be_processed_paragraphs = st.number_input("how many paragraphs should be processed?", step=1, value=1, min_value=1, max_value=5)
+            col1, col2 = st.columns([2, 1])
+            type_of_text_to_display = {
+                "original": st.session_state.content,
+                "removed": st.session_state.gapped_results,
+            }
             with col2:
-                row = st.number_input("row", step=1)
-            if depth(st.session_state[option]) == 1:
-                st.info("only column influences data")
-                st.write(st.session_state[option][int(column)])
-            elif depth(st.session_state[option]) == 2:
-                st.write(st.session_state[option][int(column)][int(row)])
-        except Exception as e:
-            st.warning(e)
+                text_type = st.radio(label="which text to show", options=["original", "removed"])
+            with col1:
+                paragraph_index = st.number_input(label="Start with this paragraph", step=1, min_value=0, max_value=len(type_of_text_to_display[text_type]) - 1)
+            st.write(type_of_text_to_display[text_type][paragraph_index])
+
+        with st.expander("**Predefined questions**"):
+            s1 = st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
+
+            # number input -> amount of questions with key = "q"+i -> collect questions afterward
+
+            amount_of_questions = st.number_input("amount of questions", step=1, value=1, min_value=1, max_value=5)
+            for i in range(1, amount_of_questions + 1):
+                try:
+                    st.text_area(f"question {i}", key=f"q{i}", value=predefined_questions[i])
+                except KeyError:
+                    st.text_area(f"question {i}", key=f"q{i}", value="")
+
+        # predefine user input OwO
+        sorted_keys = sorted((key for key in st.session_state if key.startswith("q")), key=lambda x: int(x[1:]))
+        st.session_state.user_msgs = [st.session_state[key] for key in sorted_keys]
+        st.session_state.response = ""
+
+        with st.expander("**LLM Parameters**"):
+            st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
+            st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=512, max_value=2048)
+            st.session_state.top_p = st.slider("**Top p**: By default 0.9 - lower top p means llama will select more unlikely tokens more often", min_value=0.0, value=0.9, max_value=1.0)
+        with st.expander("**Obfuscation Parameters**"):
+            st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
+            st.session_state.seed = st.slider("seed", 0, 128, 69)
+            random.seed(st.session_state.seed)
+        with st.expander("**Debug**"):
+            col1, col2 = st.columns(2)
+            option = st.selectbox("Which data do you want to display?", ("assistant_msgs", "user_msgs", "ground_truth", "gapped_results"))
+            depth = lambda L: isinstance(L, list) and max(map(depth, L)) + 1
+            try:
+                with col1:
+                    column = st.number_input("column", step=1, min_value=0)
+                with col2:
+                    row = st.number_input("row", step=1, min_value=0)
+                if depth(st.session_state[option]) == 1:
+                    st.info("only column influences data")
+                    st.write(st.session_state[option][int(column)])
+                elif depth(st.session_state[option]) == 2:
+                    st.write(st.session_state[option][int(column)][int(row)])
+            except ValueError:
+                st.warning("Generate some text first")
+            except IndexError:
+                st.warning("Index Error")
 
 
 class Roles(Enum):
@@ -221,36 +243,22 @@ def stream_response(idx: int):
 
 def main():
     # title
-    st.logo("https://ollama.com/public/ollama.png")
+    st.logo("./images/llama.png")
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
 
     # preprocessing
     html = ds.scrape_webpage("https://www.gutenberg.org/files/701/701-h/701-h.htm#chap01")  # collect_website
     content: list[str] = ds.extract_content(html)  # initial text
-    content = ds.process_text(content)  # split into paragraphs
-    st.session_state.ground_truth = content  # static
-    paragraphs: list[str] = [ds.create_gaps(s, st.session_state.mask_rate) for s in content]  # remove parts based on seed etc.
+    st.session_state.content = ds.process_text(content)  # split into paragraphs
+    st.session_state.ground_truth = st.session_state.content  # static
+    paragraphs: list[str] = [ds.create_gaps(s, st.session_state.mask_rate) for s in st.session_state.content]  # remove parts based on seed etc.
     st.session_state.gapped_results = paragraphs  # static
 
-    # displaying the scraped paragraphs
-    col1, col2 = st.columns([2, 1])
-    type_of_text_to_display = {
-        "original": content,
-        "removed": paragraphs,
-    }
-    with col1:
-        paragraph_index = st.number_input(label="Start with this paragraph", step=1, )
-    with col2:
-        text_type = st.radio(label="which text to show", options=["original", "removed"])
-    try:
-        st.write(type_of_text_to_display[text_type][paragraph_index])
-    except IndexError:
-        st.write(type_of_text_to_display[text_type][-1])
-
-    # buttons
     start_computation: bool
     plot_diagram: bool
-    amount_of_to_be_processed_paragraphs = st.number_input("how many paragraphs should be processed?", step=1, value=1, min_value=1, max_value=5)
+
+    sidebar()
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -258,13 +266,12 @@ def main():
     with col2:
         plot_diagram = st.button("Plot diagram")
 
-
     if plot_diagram:
         try:
             # Calculate BERTScores
             assistant_msgs_size = len(st.session_state.assistant_msgs)
 
-            # calculate all bertscores (outer list contains assistant_msgs_idx; inner list contains refinement_idx: [[q1, q2, q3],[q1, q2, q3],[q1, q2, q3]] where [p1, p2, p3])
+            # calculate all BERT scores (outer list contains assistant_msgs_idx; inner list contains refinement_idx: [[q1, q2, q3],[q1, q2, q3],[q1, q2, q3]] where [p1, p2, p3])
             all_bert_scores = []
             for answer_index in range(len(st.session_state.user_msgs)):
                 current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]  # will be [q1 of paragraph1, q1 of paragraph2, ...]
@@ -302,9 +309,14 @@ def main():
 
     pre_stop = 0
     for paragraph, paragraph_number in zip(paragraphs, range(len(paragraphs))):
-        if pre_stop >= amount_of_to_be_processed_paragraphs:
+        if pre_stop >= st.session_state.amount_of_to_be_processed_paragraphs:
             break
         pre_stop += 1
+        try:
+            st.session_state.assistant_msgs[paragraph_number]
+        except IndexError:
+            st.session_state.assistant_msgs.append([])
+
         if start_computation:
             st.session_state.system = st.session_state.s1 + "**" + paragraph + "**\n"  # add user prompt and system message
             with st.chat_message("system", avatar="system.svg"):
