@@ -222,7 +222,7 @@ def main():
     start_computation = st.button("Start computation")
     pre_stop = 0
     for paragraph, paragraph_number in zip(paragraphs, range(len(paragraphs))):
-        if pre_stop > 2:
+        if pre_stop > 0:
             break
         pre_stop += 1
         if start_computation:
@@ -277,7 +277,7 @@ def main():
 
         for answer_index in range(len(st.session_state.user_msgs)):
             current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
-            all_meteor_scores.append([meteor.compute(predictions=[predicted], references=[grount_truth])['meteor'] for grount_truth, predicted in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
+            all_meteor_scores.append([meteor.compute(predictions=[predicted], references=[ground_truth])['meteor'] for ground_truth, predicted in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
 
         all_bleu_scores = []
         for answer_index in range(len(st.session_state.user_msgs)):
@@ -287,8 +287,8 @@ def main():
         fig = go.Figure()
         for i in range(len(all_bert_scores)):
             for j in range(len(st.session_state.user_msgs)):
-                fig.add_trace(go.Bar(name=f'sec {i + 1} q {j + 1}', x=['BERTScore', 'METEOR', 'BLEU'],
-                                     y=[all_bert_scores[i][j], all_meteor_scores[i][j], all_bleu_scores[i][j]]))
+                fig.add_trace(go.Bar(name=f'sec {i + 1} q {j + 1}', x=['BLEU', 'BERTScore', 'METEOR'],
+                                     y=[all_bleu_scores[i][j], all_bert_scores[i][j], all_meteor_scores[i][j]]))
         fig.update_layout(
             title="Similarity Scores for Sentence Pairs",
             xaxis_title="Score Type",
