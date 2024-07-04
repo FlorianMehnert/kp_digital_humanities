@@ -29,31 +29,6 @@ bertscore, meteor = load_metrics()
 system = "You are an assistant. You try to find characters that do not belong in the given sentence. Only respond with the corrected sentence. Do not add any summarization."
 
 
-def calculate_bleu(reference, candidate, max_n=4):
-    def count_ngrams(sentence, n):
-        return Counter(ngrams(sentence, n))
-
-    ref_tokens = nltk.word_tokenize(reference.lower())
-    cand_tokens = nltk.word_tokenize(candidate.lower())
-
-    if len(cand_tokens) == 0:
-        return 0
-
-    clip_length = max(1, len(cand_tokens) - max_n + 1)
-
-    clipped_counts = {}
-    for n in range(1, max_n + 1):
-        ref_ngram_counts = count_ngrams(ref_tokens, n)
-        cand_ngram_counts = count_ngrams(cand_tokens, n)
-        clipped_counts[n] = sum(min(cand_ngram_counts[ngram], ref_ngram_counts[ngram]) for ngram in cand_ngram_counts)
-
-    brevity_penalty = min(1, np.exp(1 - len(ref_tokens) / len(cand_tokens)))
-
-    geometric_mean = np.exp(np.sum([np.log(clipped_counts[n] / max(1, len(cand_tokens) - n + 1)) for n in range(1, max_n + 1)]) / max_n)
-
-    return brevity_penalty * geometric_mean
-
-
 def clear_cache(full_reset=True):
     if full_reset:
         keys = list(st.session_state.keys())
@@ -92,6 +67,14 @@ def clear_cache(full_reset=True):
         st.session_state.content = []
     if 'amount_of_to_be_processed_paragraphs' not in st.session_state:
         st.session_state.amount_of_to_be_processed_paragraphs = 1
+    if 'show_system_prompt' not in st.session_state:
+        st.session_state.show_system_prompt = True
+    if 'show_user_message' not in st.session_state:
+        st.session_state.show_user_message = True
+    if 'show_assistant_message' not in st.session_state:
+        st.session_state.show_assistant_message = True
+    if 'mask_rate' not in st.session_state:
+        st.session_state.mask_rate = 0.3
 
 
 clear_cache(False)
@@ -115,6 +98,31 @@ predefined_questions = {
 }
 
 
+def calculate_bleu(reference, candidate, max_n=4):
+    def count_ngrams(sentence, n):
+        return Counter(ngrams(sentence, n))
+
+    ref_tokens = nltk.word_tokenize(reference.lower())
+    cand_tokens = nltk.word_tokenize(candidate.lower())
+
+    if len(cand_tokens) == 0:
+        return 0
+
+    clip_length = max(1, len(cand_tokens) - max_n + 1)
+
+    clipped_counts = {}
+    for n in range(1, max_n + 1):
+        ref_ngram_counts = count_ngrams(ref_tokens, n)
+        cand_ngram_counts = count_ngrams(cand_tokens, n)
+        clipped_counts[n] = sum(min(cand_ngram_counts[ngram], ref_ngram_counts[ngram]) for ngram in cand_ngram_counts)
+
+    brevity_penalty = min(1, np.exp(1 - len(ref_tokens) / len(cand_tokens)))
+
+    geometric_mean = np.exp(np.sum([np.log(clipped_counts[n] / max(1, len(cand_tokens) - n + 1)) for n in range(1, max_n + 1)]) / max_n)
+
+    return brevity_penalty * geometric_mean
+
+
 def sidebar():
     with st.sidebar:
         st.logo('logo.svg')
@@ -132,8 +140,18 @@ def sidebar():
                 paragraph_index = st.number_input(label="Start with this paragraph", step=1, min_value=0, max_value=len(type_of_text_to_display[text_type]) - 1)
             st.write(type_of_text_to_display[text_type][paragraph_index])
 
+        with st.expander("**Visibility**"):
+            st.markdown(":gray[**Reduce the amount of text covering the screen**]")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.session_state.show_system_prompt = st.toggle("system", value=True)
+            with col2:
+                st.session_state.show_user_message = st.toggle("user", value=True)
+            with col3:
+                st.session_state.show_assistant_message = st.toggle("assistant", value=True)
+
         with st.expander("**Predefined questions**"):
-            s1 = st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
+            st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
 
             # number input -> amount of questions with key = "q"+i -> collect questions afterward
 
@@ -215,7 +233,7 @@ def assemble_pre_prompt(idx: int) -> str:
     return prompt
 
 
-def stream_response(idx: int):
+def stream_response(idx: int, stream=True):
     """
     generating response for the nth assistant where n is idx
     using st.assistant_msgs and st.user_msgs for preprompt
@@ -229,21 +247,25 @@ def stream_response(idx: int):
             'top_p': st.session_state.top_p,
             'stop': ['<EOT>'],
         },
-        stream=True
+        stream=stream
     )
-    # yield response
-    for chunk in response:
-        st.session_state.response += chunk.get("response")
-        yield chunk.get("response")
-        if chunk.get("done"):
-            st.session_state.has_finished = True
-            if chunk.get("done_reason") == "length":
-                st.warning("Please increase the LLM Parameter Max tokens")
+    if stream:
+        # yield response
+        for chunk in response:
+            st.session_state.response += chunk.get("response")
+            yield chunk.get("response")
+            if chunk.get("done"):
+                st.session_state.has_finished = True
+                if chunk.get("done_reason") == "length":
+                    st.warning("Please increase the LLM Parameter Max tokens")
+    else:
+        st.session_state.response = response.get("response")
+        st.session_state.has_finished = True
+        return response.get("response")
 
 
 def main():
     # title
-    st.logo("./images/llama.png")
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
 
     # preprocessing
@@ -264,7 +286,7 @@ def main():
     with col1:
         start_computation = st.button("Start computation")
     with col2:
-        plot_diagram = st.button("Plot diagram")
+        plot_diagram = st.toggle("Plot diagram")
 
     if plot_diagram:
         try:
@@ -319,9 +341,10 @@ def main():
 
         if start_computation:
             st.session_state.system = st.session_state.s1 + "**" + paragraph + "**\n"  # add user prompt and system message
-            with st.chat_message("system", avatar="system.svg"):
-                st.subheader("system prompt")
-                st.write(st.session_state.system)
+            if st.session_state.show_system_prompt:
+                with st.chat_message("system", avatar="./images/system.svg"):
+                    st.subheader("system prompt")
+                    st.write(st.session_state.system)
             st.session_state.count = -1
 
         for question_number in range(len(st.session_state.user_msgs)):
@@ -344,11 +367,14 @@ def main():
 
                 # generate text for nth passage entry
                 if not st.session_state.has_finished:
-                    with st.chat_message("user"):
-                        st.write(st.session_state.user_msgs[st.session_state.count])
-
-                    with st.chat_message("assistant"):
-                        st.write(stream_response(paragraph_number))
+                    if st.session_state.show_user_message:
+                        with st.chat_message("user"):
+                            st.write(st.session_state.user_msgs[st.session_state.count])
+                    if st.session_state.show_assistant_message:
+                        with st.chat_message("assistant"):
+                            st.write(stream_response(paragraph_number))
+                    else:
+                        st.write(stream_response(paragraph_number, False))
 
                 if st.session_state.has_finished:
                     st.session_state.assistant_msgs[paragraph_number][st.session_state.count] = st.session_state.response
