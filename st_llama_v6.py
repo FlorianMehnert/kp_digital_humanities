@@ -248,11 +248,61 @@ def main():
         st.write(type_of_text_to_display[text_type][-1])
 
     # buttons
-    start_computation = st.button("Start computation")
+    start_computation: bool
+    plot_diagram: bool
+    amount_of_to_be_processed_paragraphs = st.number_input("how many paragraphs should be processed?", step=1, value=1, min_value=1, max_value=5)
+    col1, col2 = st.columns(2)
+
+    with col1:
+        start_computation = st.button("Start computation")
+    with col2:
+        plot_diagram = st.button("Plot diagram")
+
+
+    if plot_diagram:
+        try:
+            # Calculate BERTScores
+            assistant_msgs_size = len(st.session_state.assistant_msgs)
+
+            # calculate all bertscores (outer list contains assistant_msgs_idx; inner list contains refinement_idx: [[q1, q2, q3],[q1, q2, q3],[q1, q2, q3]] where [p1, p2, p3])
+            all_bert_scores = []
+            for answer_index in range(len(st.session_state.user_msgs)):
+                current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]  # will be [q1 of paragraph1, q1 of paragraph2, ...]
+
+                # assistant msgs is correct
+                # reference stays the same for answers
+                # prediction of is the correct question
+                all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_question, references=st.session_state.ground_truth[:assistant_msgs_size], lang="en")['f1'])  # compare two sentences (pred and ref)
+
+            all_meteor_scores = []
+
+            for answer_index in range(len(st.session_state.user_msgs)):
+                current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
+                all_meteor_scores.append([meteor.compute(predictions=[predicted], references=[ground_truth])['meteor'] for ground_truth, predicted in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
+
+            all_bleu_scores = []
+            for answer_index in range(len(st.session_state.user_msgs)):
+                current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
+                all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
+            fig = go.Figure()
+            for i in range(len(st.session_state.user_msgs)):  # "i" is number of paragraph
+                for j in range(len(st.session_state.assistant_msgs)):  # j is question i
+                    fig.add_trace(go.Bar(name=f'sec {i + 1} q {j + 1}', x=['BLEU', 'BERTScore', 'METEOR'],
+                                         y=[all_bleu_scores[i][j], all_bert_scores[i][j], all_meteor_scores[i][j]]))
+            fig.update_layout(
+                title="Similarity Scores for Sentence Pairs",
+                xaxis_title="Score Type",
+                yaxis_title="Score Value",
+                yaxis_range=[0, 1],
+                barmode='group'
+            )
+            st.plotly_chart(fig)
+        except IndexError:
+            st.warning("Press \"Start computation\" first")
 
     pre_stop = 0
     for paragraph, paragraph_number in zip(paragraphs, range(len(paragraphs))):
-        if pre_stop > 0:
+        if pre_stop >= amount_of_to_be_processed_paragraphs:
             break
         pre_stop += 1
         if start_computation:
@@ -291,45 +341,6 @@ def main():
                 if st.session_state.has_finished:
                     st.session_state.assistant_msgs[paragraph_number][st.session_state.count] = st.session_state.response
                     st.session_state.response = ""
-
-    plot_diagram = st.button("Plot diagram")
-    if plot_diagram:
-        # Calculate BERTScores
-        assistant_msgs_size = len(st.session_state.assistant_msgs)
-
-        # calculate all bertscores (outer list contains assistant_msgs_idx; inner list contains refinement_idx: [[q1, q2, q3],[q1, q2, q3],[q1, q2, q3]] where [p1, p2, p3])
-        all_bert_scores = []
-        for answer_index in range(len(st.session_state.user_msgs)):
-            current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]  # will be [q1 of paragraph1, q1 of paragraph2, ...]
-
-            # assistant msgs is correct
-            # reference stays the same for answers
-            # prediction of is the correct question
-            all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_question, references=st.session_state.ground_truth[:assistant_msgs_size], lang="en")['f1'])  # compare two sentences (pred and ref)
-
-        all_meteor_scores = []
-
-        for answer_index in range(len(st.session_state.user_msgs)):
-            current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
-            all_meteor_scores.append([meteor.compute(predictions=[predicted], references=[ground_truth])['meteor'] for ground_truth, predicted in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
-
-        all_bleu_scores = []
-        for answer_index in range(len(st.session_state.user_msgs)):
-            current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
-            all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
-        fig = go.Figure()
-        for i in range(len(st.session_state.user_msgs)):  # "i" is number of paragraph
-            for j in range(len(st.session_state.assistant_msgs)):  # j is question i
-                fig.add_trace(go.Bar(name=f'sec {i + 1} q {j + 1}', x=['BLEU', 'BERTScore', 'METEOR'],
-                                     y=[all_bleu_scores[i][j], all_bert_scores[i][j], all_meteor_scores[i][j]]))
-        fig.update_layout(
-            title="Similarity Scores for Sentence Pairs",
-            xaxis_title="Score Type",
-            yaxis_title="Score Value",
-            yaxis_range=[0, 1],
-            barmode='group'
-        )
-        st.plotly_chart(fig)
 
 
 if __name__ == "__main__":
