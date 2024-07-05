@@ -1,8 +1,13 @@
+import json
+import os
 import random
 
 import streamlit as st
 from ollama import generate
 from enum import Enum
+
+from streamlit.errors import StreamlitAPIException
+
 import st_dataset_v1 as ds
 from evaluate import load
 import numpy as np
@@ -10,9 +15,43 @@ import plotly.graph_objects as go
 from collections import Counter
 from nltk.util import ngrams
 
-from nltk.translate.bleu_score import sentence_bleu
-from nltk.tokenize import word_tokenize
 import nltk
+
+import pickle
+
+
+# Function to save the session state
+def save_state():
+    to_be_saved_things = ["assistant_msgs", "user_msgs", "ground_truth_msgs", "amount_of_to_be_processed_paragraphs", "system"]
+    state_data = {key: value for key, value in st.session_state.items() if not key.startswith('_') and key in to_be_saved_things}
+    json_data = json.dumps(state_data)
+    st.download_button(
+        label="Download state",
+        file_name="session_state.json",
+        mime="application/json",
+        data=json_data
+    )
+
+
+# Function to load the session state
+def load_state(file):
+    if file is not None:
+        try:
+            state_data = json.load(file)
+            for key, value in state_data.items():
+                st.session_state[key] = value
+            st.success("Session state loaded successfully!")
+        except json.JSONDecodeError:
+            st.error("Invalid JSON file. Please upload a valid session state file.")
+        except StreamlitAPIException:
+            pass
+
+
+def file_selector(folder_path='.'):
+    filenames = os.listdir(folder_path)
+    selected_filename = st.selectbox('Select a file', filenames)
+    return os.path.join(folder_path, selected_filename)
+
 
 # Download necessary NLTK data
 nltk.download('punkt', quiet=True)
@@ -98,15 +137,15 @@ predefined_questions = {
 }
 
 debug_namings = {
-    "assistant_msgs":("paragraph", "question"),
+    "assistant_msgs": ("paragraph", "question"),
     "user_msgs": ("question", ""),
-    "ground_truth" : ("paragraph", "")
+    "ground_truth": ("paragraph", "")
 }
 
 debug_input_visibility = {
-    "assistant_msgs":(False, False),
+    "assistant_msgs": (False, False),
     "user_msgs": (False, True),
-    "ground_truth" : (False, True)
+    "ground_truth": (False, True)
 }
 
 
@@ -187,6 +226,16 @@ def sidebar():
             st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
             st.session_state.seed = st.slider("seed", 0, 128, 69)
             random.seed(st.session_state.seed)
+        with st.expander("**Load/Save Session**"):
+            if st.button("Save State"):
+                save_state()
+
+            # Load state file uploader
+            uploaded_file = st.file_uploader("Load State", type="json")
+            if uploaded_file is not None:
+                if st.button("Load State"):
+                    load_state(uploaded_file)
+
         with st.expander("**Debug**"):
             col1, col2 = st.columns(2)
             option = st.selectbox("Which data do you want to display?", ("assistant_msgs", "user_msgs", "ground_truth", "gapped_results"))
@@ -297,9 +346,10 @@ def main():
 
     with col1:
         start_computation = st.button("Start computation")
-        if st.session_state.amount_of_to_be_processed_paragraphs > 1:
-            paragraph_progress = st.progress(0, text=f"**{st.session_state.amount_of_to_be_processed_paragraphs} paragraph** will be processed)")
-        question_progress = st.progress(0, text=f"about to process **{len(st.session_state.user_msgs)} questions**")
+        if start_computation:
+            if st.session_state.amount_of_to_be_processed_paragraphs > 1:
+                paragraph_progress = st.progress(0, text=f"**{st.session_state.amount_of_to_be_processed_paragraphs} paragraph** will be processed)")
+            question_progress = st.progress(0, text=f"about to process **{len(st.session_state.user_msgs)} questions**")
     with col2:
         plot_diagram = st.toggle("Plot diagram")
 
@@ -341,8 +391,18 @@ def main():
                 barmode='group'
             )
             st.plotly_chart(fig)
+
         except IndexError:
-            st.warning("Press \"Start computation\" first")
+            fig = go.Figure()
+            fig.update_layout(
+                title="Similarity Scores for Sentence Pairs",
+                xaxis_title="Score Type",
+                yaxis_title="Score Value",
+                yaxis_range=[0, 1],
+                barmode='group'
+            )
+            st.plotly_chart(fig)
+            st.warning("Press \"Start computation\" first or Load from file")
 
     pre_stop = 0
     for paragraph, paragraph_number in zip(paragraphs, range(len(paragraphs))):
@@ -358,7 +418,7 @@ def main():
 
             # display progress paragraphs
             if st.session_state.amount_of_to_be_processed_paragraphs > 1:
-                paragraph_progress.progress((paragraph_number + 1) / len(paragraphs), text=f"processed {paragraph_number+1} paragraph{"s" if paragraph_number > 0 else ""}")
+                paragraph_progress.progress((paragraph_number + 1) / st.session_state.amount_of_to_be_processed_paragraphs, text=f"processed {paragraph_number + 1} paragraph{"s" if paragraph_number > 0 else ""}")
 
             # system prompt assembly
             st.session_state.system = st.session_state.s1 + "**" + paragraph + "**\n"  # add user prompt and system message
