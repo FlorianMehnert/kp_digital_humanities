@@ -94,7 +94,7 @@ end_token_input = "<|eot_id|>"
 predefined_questions = {
     1: "In the provided text missing words are marked with a minus sign. Insert the missing words. Only respond with the corrected text. Do not add any summarization.",
     2: "Improve your text further!",
-    3: "Try to improve on your text!"
+    3: "Improve your text further!"
 }
 
 debug_namings = {
@@ -167,12 +167,12 @@ def sidebar():
 
             # number input -> amount of questions with key = "q"+i -> collect questions afterward
 
-            amount_of_questions = st.number_input("amount of questions", step=1, value=1, min_value=1, max_value=5)
+            amount_of_questions = st.number_input("amount of questions", step=1, value=1, min_value=1, max_value=50)
             for i in range(1, amount_of_questions + 1):
                 try:
                     st.text_area(f"question {i}", key=f"q{i}", value=predefined_questions[i])
                 except KeyError:
-                    st.text_area(f"question {i}", key=f"q{i}", value="")
+                    st.text_area(f"question {i}", key=f"q{i}", value="Improve your text further!")
 
         # predefine user input OwO
         sorted_keys = sorted((key for key in st.session_state if key.startswith("q")), key=lambda x: int(x[1:]))
@@ -297,6 +297,9 @@ def main():
 
     with col1:
         start_computation = st.button("Start computation")
+        if st.session_state.amount_of_to_be_processed_paragraphs > 1:
+            paragraph_progress = st.progress(0, text=f"**{st.session_state.amount_of_to_be_processed_paragraphs} paragraph** will be processed)")
+        question_progress = st.progress(0, text=f"about to process **{len(st.session_state.user_msgs)} questions**")
     with col2:
         plot_diagram = st.toggle("Plot diagram")
 
@@ -352,6 +355,12 @@ def main():
             st.session_state.assistant_msgs.append([])
 
         if start_computation:
+
+            # display progress paragraphs
+            if st.session_state.amount_of_to_be_processed_paragraphs > 1:
+                paragraph_progress.progress((paragraph_number + 1) / len(paragraphs), text=f"processed {paragraph_number+1} paragraph{"s" if paragraph_number > 0 else ""}")
+
+            # system prompt assembly
             st.session_state.system = st.session_state.s1 + "**" + paragraph + "**\n"  # add user prompt and system message
             if st.session_state.show_system_prompt:
                 with st.chat_message("system", avatar="./images/system.svg"):
@@ -361,6 +370,8 @@ def main():
 
         for question_number in range(len(st.session_state.user_msgs)):
             if start_computation:
+
+                # some crazy meme fits here - who needs if else =? if not if :)
                 if st.session_state.has_finished:  # completed once
                     st.session_state.count += 1  # using this to access current position in msgs arrays
 
@@ -387,6 +398,8 @@ def main():
                             st.write(stream_response(paragraph_number))
                     else:
                         st.write(stream_response(paragraph_number, False))
+
+                    question_progress.progress((st.session_state.count + 1) / len(st.session_state.user_msgs), text=f"processed {st.session_state.count + 1} question{"s" if st.session_state.count > 0 else ""}")
 
                 if st.session_state.has_finished:
                     st.session_state.assistant_msgs[paragraph_number][st.session_state.count] = st.session_state.response
