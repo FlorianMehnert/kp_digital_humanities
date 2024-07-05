@@ -97,6 +97,18 @@ predefined_questions = {
     3: "Try to improve on your text!"
 }
 
+debug_namings = {
+    "assistant_msgs":("paragraph", "question"),
+    "user_msgs": ("question", ""),
+    "ground_truth" : ("paragraph", "")
+}
+
+debug_input_visibility = {
+    "assistant_msgs":(False, False),
+    "user_msgs": (False, True),
+    "ground_truth" : (False, True)
+}
+
 
 def calculate_bleu(reference, candidate, max_n=4):
     def count_ngrams(sentence, n):
@@ -181,9 +193,9 @@ def sidebar():
             depth = lambda L: isinstance(L, list) and max(map(depth, L)) + 1
             try:
                 with col1:
-                    column = st.number_input("column", step=1, min_value=0)
+                    column = st.number_input(label=debug_namings[option][0], step=1, min_value=0, disabled=debug_input_visibility[option][0])
                 with col2:
-                    row = st.number_input("row", step=1, min_value=0)
+                    row = st.number_input(label=debug_namings[option][1], step=1, min_value=0, disabled=debug_input_visibility[option][1])
                 if depth(st.session_state[option]) == 1:
                     st.info("only column influences data")
                     st.write(st.session_state[option][int(column)])
