@@ -1,6 +1,10 @@
+import contextlib
+import io
 import json
 import os
 import random
+import sys
+import pandas as pd
 
 import streamlit as st
 from ollama import generate
@@ -12,12 +16,24 @@ import st_dataset_v1 as ds
 from evaluate import load
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 from collections import Counter
 from nltk.util import ngrams
 
 import nltk
 
-import pickle
+
+@contextlib.contextmanager
+def suppress_stderr():
+    """
+    A context manager that redirects stderr to devnull
+    """
+    stderr = sys.stderr
+    sys.stderr = io.StringIO()
+    try:
+        yield
+    finally:
+        sys.stderr = stderr
 
 
 # Function to save the session state
@@ -325,6 +341,39 @@ def stream_response(idx: int, stream=True):
         return response.get("response")
 
 
+def plot_scores(bleu, bert, meteor):
+    # Ensure all lists have the same length
+    if len(bleu) != len(bert) or len(bleu) != len(meteor):
+        raise ValueError("All score lists must have the same length")
+
+    # Create a DataFrame
+    df = pd.DataFrame({
+        'Data Point': range(1, len(bleu) + 1),
+        'Score 1': bleu,
+        'Score 2': bert,
+        'Score 3': meteor
+    })
+
+    # Create the Plotly figure
+    fig = go.Figure()
+
+    # Add traces for each score
+    fig.add_trace(go.Scatter(x=df['Data Point'], y=df['Score 1'], mode='lines+markers', name='bleu score'))
+    fig.add_trace(go.Scatter(x=df['Data Point'], y=df['Score 2'], mode='lines+markers', name='bert score'))
+    fig.add_trace(go.Scatter(x=df['Data Point'], y=df['Score 3'], mode='lines+markers', name='meteor score'))
+
+    # Update layout
+    fig.update_layout(
+        title='Answer compared to ground truth using BLEU, BERT an METEOR scores',
+        xaxis_title='Data Point',
+        yaxis_title='Score',
+        legend_title='Scores',
+        hovermode='x unified'
+    )
+
+    # Display the plot in Streamlit
+    st.plotly_chart(fig)
+
 def main():
     # title
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
@@ -354,6 +403,7 @@ def main():
         plot_diagram = st.toggle("Plot diagram")
 
     if plot_diagram:
+        print("someone started to plot a diagram")
         try:
             # Calculate BERTScores
             assistant_msgs_size = len(st.session_state.assistant_msgs)
@@ -366,7 +416,8 @@ def main():
                 # assistant msgs is correct
                 # reference stays the same for answers
                 # prediction of is the correct question
-                all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_question, references=st.session_state.ground_truth[:assistant_msgs_size], lang="en")['f1'])  # compare two sentences (pred and ref)
+                with suppress_stderr():
+                    all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_question, references=st.session_state.ground_truth[:assistant_msgs_size], lang="en")['f1'])  # compare two sentences (pred and ref)
 
             all_meteor_scores = []
 
@@ -378,28 +429,19 @@ def main():
             for answer_index in range(len(st.session_state.user_msgs)):
                 current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
                 all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
-            fig = go.Figure()
-            for i in range(len(st.session_state.user_msgs)):  # "i" is number of paragraph
-                for j in range(len(st.session_state.assistant_msgs)):  # j is question i
-                    fig.add_trace(go.Bar(name=f'sec {i + 1} q {j + 1}', x=['BLEU', 'BERTScore', 'METEOR'],
-                                         y=[all_bleu_scores[i][j], all_bert_scores[i][j], all_meteor_scores[i][j]]))
-            fig.update_layout(
-                title="Similarity Scores for Sentence Pairs",
-                xaxis_title="Score Type",
-                yaxis_title="Score Value",
-                yaxis_range=[0, 1],
-                barmode='group'
-            )
-            st.plotly_chart(fig)
+
+            first_bleu_score_entries = [i[0] for i in all_bleu_scores]
+            first_bert_score_entries = [i[0] for i in all_bert_scores]
+            first_meteor_score_entries = [i[0] for i in all_meteor_scores]
+
+            plot_scores(first_bleu_score_entries, first_bert_score_entries, first_meteor_score_entries)
 
         except IndexError:
             fig = go.Figure()
             fig.update_layout(
-                title="Similarity Scores for Sentence Pairs",
-                xaxis_title="Score Type",
-                yaxis_title="Score Value",
-                yaxis_range=[0, 1],
-                barmode='group'
+                title='Development of Elements',
+                xaxis_title='Index',
+                yaxis_title='Value'
             )
             st.plotly_chart(fig)
             st.warning("Press \"Start computation\" first or Load from file")
@@ -415,7 +457,7 @@ def main():
             st.session_state.assistant_msgs.append([])
 
         if start_computation:
-
+            print("someone started the computation")
             # display progress paragraphs
             if st.session_state.amount_of_to_be_processed_paragraphs > 1:
                 paragraph_progress.progress((paragraph_number + 1) / st.session_state.amount_of_to_be_processed_paragraphs, text=f"processed {paragraph_number + 1} paragraph{"s" if paragraph_number > 0 else ""}")
