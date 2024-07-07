@@ -119,8 +119,6 @@ def clear_cache(full_reset=True):
         st.session_state.bert_scores = []
     if 'content' not in st.session_state:
         st.session_state.content = []
-    if 'amount_of_to_be_processed_paragraphs' not in st.session_state:
-        st.session_state.amount_of_to_be_processed_paragraphs = 1
     if 'repeat_count_per_paragraph' not in st.session_state:
         st.session_state.repeat_count_per_paragraph = 1
     if 'show_system_prompt' not in st.session_state:
@@ -380,6 +378,16 @@ def plot_scores(bleu, bert, meteor):
     # Display the plot in Streamlit
     st.plotly_chart(fig)
 
+
+def abbreviation(length: int) ->  str:
+ if length == 1:
+     return "st"
+ elif length == 2:
+     return "nd"
+ else:
+     return "th"
+
+
 def main():
     # title
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
@@ -402,8 +410,8 @@ def main():
     with col1:
         start_computation = st.button("Start computation")
         if start_computation:
-            if st.session_state.amount_of_to_be_processed_paragraphs > 1:
-                paragraph_progress = st.progress(0, text=f"**{st.session_state.amount_of_to_be_processed_paragraphs} paragraph** will be processed)")
+            if st.session_state.repeat_count_per_paragraph > 1:
+                paragraph_progress = st.progress(0, text=f"**processing paragraph the {st.session_state.repeat_count_per_paragraph} {abbreviation(st.session_state.repeat_count_per_paragraph)} time**")
             question_progress = st.progress(0, text=f"about to process **{len(st.session_state.user_msgs)} questions**")
     with col2:
         plot_diagram = st.toggle("Plot diagram")
