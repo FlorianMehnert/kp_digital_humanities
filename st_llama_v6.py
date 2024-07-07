@@ -215,7 +215,7 @@ def sidebar():
                 st.session_state.show_user_message = st.toggle("user", value=True)
             with col3:
                 st.session_state.show_assistant_message = st.toggle("assistant", value=True)
-            if st.session_state.repeat_count_per_paragraph * len(st.session_state.user_msgs) > 32:
+            if st.session_state.repeat_count_per_paragraph * len(st.session_state.user_msgs) > 8:
                 st.session_state.show_system_prompt = False
                 st.session_state.show_user_message = False
                 st.session_state.show_assistant_message = False
@@ -437,27 +437,29 @@ def main():
             # Calculate BERTScores
             assistant_msgs_size = len(st.session_state.assistant_msgs)
 
+            original_msgs = [st.session_state.ground_truth[0]] * assistant_msgs_size
+
             # calculate all BERT scores (outer list contains assistant_msgs_idx; inner list contains refinement_idx: [[q1, q2, q3],[q1, q2, q3],[q1, q2, q3]] where [p1, p2, p3])
             all_bert_scores = []
             for answer_index in range(len(st.session_state.user_msgs)):
-                current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]  # will be [q1 of paragraph1, q1 of paragraph2, ...]
+                current_assistants_nth_questions = [msg[answer_index] for msg in st.session_state.assistant_msgs]  # will be [q1 of paragraph1, q1 of paragraph2, ...]
 
                 # assistant msgs is correct
                 # reference stays the same for answers
                 # prediction of is the correct question
                 with suppress_stderr():
-                    all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_question, references=st.session_state.ground_truth[:assistant_msgs_size], lang="en")['f1'])  # compare two sentences (pred and ref)
+                    all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_questions, references=original_msgs, lang="en")['f1'])  # compare two sentences (pred and ref)
 
             all_meteor_scores = []
 
             for answer_index in range(len(st.session_state.user_msgs)):
-                current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
-                all_meteor_scores.append([meteor.compute(predictions=[predicted], references=[ground_truth])['meteor'] for ground_truth, predicted in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
+                current_assistants_nth_questions = [msg[answer_index] for msg in st.session_state.assistant_msgs]
+                all_meteor_scores.append([meteor.compute(predictions=[predicted], references=[ground_truth])['meteor'] for ground_truth, predicted in zip(original_msgs, current_assistants_nth_questions)])
 
             all_bleu_scores = []
             for answer_index in range(len(st.session_state.user_msgs)):
-                current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
-                all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
+                current_assistants_nth_questions = [msg[answer_index] for msg in st.session_state.assistant_msgs]
+                all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(original_msgs, current_assistants_nth_questions)])
 
             plot_scores(all_bleu_scores, all_bert_scores, all_meteor_scores)
 
