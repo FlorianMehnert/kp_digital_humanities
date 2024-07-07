@@ -194,8 +194,7 @@ def sidebar():
         st.logo('logo.svg')
         with st.expander("**General Stuff**"):
             # displaying the scraped paragraphs
-            st.session_state.amount_of_to_be_processed_paragraphs = st.number_input("how many paragraphs should be processed?", step=1, value=1, min_value=1, max_value=5)
-            st.session_state.repeat_count_per_paragraph = st.number_input("how many paragraphs should be processed?", step=1, value=1, min_value=1, max_value=50)
+            st.session_state.repeat_count_per_paragraph = st.number_input("repeat amount for current paragraph", step=1, value=1, min_value=1, max_value=50)
             col1, col2 = st.columns([2, 1])
             type_of_text_to_display = {
                 "original": st.session_state.content,
@@ -216,7 +215,7 @@ def sidebar():
                 st.session_state.show_user_message = st.toggle("user", value=True)
             with col3:
                 st.session_state.show_assistant_message = st.toggle("assistant", value=True)
-            if st.session_state.repeat_count_per_paragraph * st.session_state.amount_of_to_be_processed_paragraphs * st.session_state.user_msgs > 32:
+            if st.session_state.repeat_count_per_paragraph * len(st.session_state.user_msgs) > 32:
                 st.session_state.show_system_prompt = False
                 st.session_state.show_user_message = False
                 st.session_state.show_assistant_message = False
@@ -345,47 +344,63 @@ def stream_response(idx: int, stream=True):
         return response.get("response")
 
 
-def plot_scores(bleu, bert, meteor):
-    # Ensure all lists have the same length
-    if len(bleu) != len(bert) or len(bleu) != len(meteor):
-        raise ValueError("All score lists must have the same length")
-
-    # Create a DataFrame
-    df = pd.DataFrame({
-        'Data Point': range(1, len(bleu) + 1),
-        'Score 1': bleu,
-        'Score 2': bert,
-        'Score 3': meteor
-    })
+def plot_scores(all_bleu_scores, all_bert_scores, all_meteor_scores, index_trend=0):
+    # Determine the number of sublists (assuming all score lists have the same structure)
+    num_sublists = len(all_bleu_scores)
 
     # Create the Plotly figure
     fig = go.Figure()
+    colors = ['orange', 'red', 'black']
 
-    # Add traces for each score
-    fig.add_trace(go.Scatter(x=df['Data Point'], y=df['Score 1'], mode='lines+markers', name='bleu score'))
-    fig.add_trace(go.Scatter(x=df['Data Point'], y=df['Score 2'], mode='lines+markers', name='bert score'))
-    fig.add_trace(go.Scatter(x=df['Data Point'], y=df['Score 3'], mode='lines+markers', name='meteor score'))
+    # Names for each dataset
+    dataset_names = ['bleu', 'bert', 'meteor']
 
-    # Update layout
+    # Add box plots for each question and dataset
+    for i, (d1, d2, d3) in enumerate(zip(all_bleu_scores, all_bert_scores, all_meteor_scores), 1):
+        for j, (data, color, name) in enumerate(zip([d1, d2, d3], colors, dataset_names)):
+            fig.add_trace(go.Box(
+                y=data,
+                name=f'Q{i}',
+                legendgroup=name,
+                legendgrouptitle_text=name,
+                marker_color=color,
+                boxpoints='all',  # Show all points
+                offsetgroup=j  # Group boxes for each dataset
+            ))
+
+    # Add line plots for the first element of each sublist
+    for data, color, name in zip([all_bleu_scores, all_bert_scores, all_meteor_scores], colors, dataset_names):
+        first_elements = [sublist[index_trend] for sublist in data]
+        fig.add_trace(go.Scatter(
+            x=[f'Q{i}' for i in range(1, len(data) + 1)],
+            y=first_elements,
+            mode='lines+markers',
+            name=f'{name} (First Elements)',
+            line=dict(color=color, dash='solid'),
+            marker=dict(symbol='circle', size=10, color=color),
+            legendgroup=name
+        ))
+
     fig.update_layout(
-        title='Answer compared to ground truth using BLEU, BERT an METEOR scores',
-        xaxis_title='Data Point',
-        yaxis_title='Score',
-        legend_title='Scores',
-        hovermode='x unified'
+        title='BLEU, BERT and METEOR scores grouped with trend of first repetition',
+        yaxis_title='Values',
+        xaxis_title='Questions',
+        boxmode='group',
+        legend_title_text='Datasets',
+        legend=dict(groupclick="toggleitem")
     )
 
     # Display the plot in Streamlit
     st.plotly_chart(fig)
 
 
-def abbreviation(length: int) ->  str:
- if length == 1:
-     return "st"
- elif length == 2:
-     return "nd"
- else:
-     return "th"
+def abbreviation(length: int) -> str:
+    if length == 1:
+        return "st"
+    elif length == 2:
+        return "nd"
+    else:
+        return "th"
 
 
 def main():
@@ -444,11 +459,7 @@ def main():
                 current_assistants_nth_question = [msg[answer_index] for msg in st.session_state.assistant_msgs]
                 all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(st.session_state.ground_truth[:assistant_msgs_size], current_assistants_nth_question)])
 
-            first_bleu_score_entries = [i[0] for i in all_bleu_scores]
-            first_bert_score_entries = [i[0] for i in all_bert_scores]
-            first_meteor_score_entries = [i[0] for i in all_meteor_scores]
-
-            plot_scores(first_bleu_score_entries, first_bert_score_entries, first_meteor_score_entries)
+            plot_scores(all_bleu_scores, all_bert_scores, all_meteor_scores)
 
         except IndexError:
             fig = go.Figure()
@@ -460,24 +471,29 @@ def main():
             st.plotly_chart(fig)
             st.warning("Press \"Start computation\" first or Load from file")
 
+    # choose paragraph to be repeatedly iterate over
+    st.session_state.paragraph = paragraphs[0]
+
     pre_stop = 0
-    for paragraph, paragraph_number in zip(paragraphs, range(len(paragraphs))):
-        if pre_stop >= st.session_state.amount_of_to_be_processed_paragraphs:
-            break
-        pre_stop += 1
+    for paragraph_repetition in range(st.session_state.repeat_count_per_paragraph):
+
+        # easy way of dynamically updating assistant_msgs size
         try:
-            st.session_state.assistant_msgs[paragraph_number]
+            st.session_state.assistant_msgs[paragraph_repetition]
         except IndexError:
             st.session_state.assistant_msgs.append([])
+
+        # increment random seed - and increment by one each repetition
+        random.seed(st.session_state.seed+paragraph_repetition)
 
         if start_computation:
             print("someone started the computation")
             # display progress paragraphs
-            if st.session_state.amount_of_to_be_processed_paragraphs > 1:
-                paragraph_progress.progress((paragraph_number + 1) / st.session_state.amount_of_to_be_processed_paragraphs, text=f"processed {paragraph_number + 1} paragraph{"s" if paragraph_number > 0 else ""}")
+            if st.session_state.repeat_count_per_paragraph > 1:
+                paragraph_progress.progress((paragraph_repetition + 1) / st.session_state.repeat_count_per_paragraph, text=f"processed {paragraph_repetition + 1} paragraph{"s" if paragraph_repetition > 0 else ""}")
 
             # system prompt assembly
-            st.session_state.system = st.session_state.s1 + "**" + paragraph + "**\n"  # add user prompt and system message
+            st.session_state.system = st.session_state.s1 + "**" + st.session_state.paragraph + "**\n"  # add user prompt and system message
             if st.session_state.show_system_prompt:
                 with st.chat_message("system", avatar="./images/system.svg"):
                     st.subheader("system prompt")
@@ -511,14 +527,14 @@ def main():
                             st.write(st.session_state.user_msgs[st.session_state.count])
                     if st.session_state.show_assistant_message:
                         with st.chat_message("assistant"):
-                            st.write(stream_response(paragraph_number))
+                            st.write(stream_response(paragraph_repetition))
                     else:
-                        st.write(stream_response(paragraph_number, False))
+                        st.write(stream_response(paragraph_repetition, False))
 
                     question_progress.progress((st.session_state.count + 1) / len(st.session_state.user_msgs), text=f"processed {st.session_state.count + 1} question{"s" if st.session_state.count > 0 else ""}")
 
                 if st.session_state.has_finished:
-                    st.session_state.assistant_msgs[paragraph_number][st.session_state.count] = st.session_state.response
+                    st.session_state.assistant_msgs[paragraph_repetition][st.session_state.count] = st.session_state.response
                     st.session_state.response = ""
 
 
