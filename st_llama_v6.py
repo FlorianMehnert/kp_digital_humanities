@@ -16,7 +16,6 @@ import st_dataset_v1 as ds
 from evaluate import load
 import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px
 from collections import Counter
 from nltk.util import ngrams
 
@@ -122,6 +121,8 @@ def clear_cache(full_reset=True):
         st.session_state.content = []
     if 'amount_of_to_be_processed_paragraphs' not in st.session_state:
         st.session_state.amount_of_to_be_processed_paragraphs = 1
+    if 'repeat_count_per_paragraph' not in st.session_state:
+        st.session_state.repeat_count_per_paragraph = 1
     if 'show_system_prompt' not in st.session_state:
         st.session_state.show_system_prompt = True
     if 'show_user_message' not in st.session_state:
@@ -196,6 +197,7 @@ def sidebar():
         with st.expander("**General Stuff**"):
             # displaying the scraped paragraphs
             st.session_state.amount_of_to_be_processed_paragraphs = st.number_input("how many paragraphs should be processed?", step=1, value=1, min_value=1, max_value=5)
+            st.session_state.repeat_count_per_paragraph = st.number_input("how many paragraphs should be processed?", step=1, value=1, min_value=1, max_value=50)
             col1, col2 = st.columns([2, 1])
             type_of_text_to_display = {
                 "original": st.session_state.content,
@@ -216,6 +218,10 @@ def sidebar():
                 st.session_state.show_user_message = st.toggle("user", value=True)
             with col3:
                 st.session_state.show_assistant_message = st.toggle("assistant", value=True)
+            if st.session_state.repeat_count_per_paragraph * st.session_state.amount_of_to_be_processed_paragraphs * st.session_state.user_msgs > 32:
+                st.session_state.show_system_prompt = False
+                st.session_state.show_user_message = False
+                st.session_state.show_assistant_message = False
 
         with st.expander("**Predefined questions**"):
             st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
