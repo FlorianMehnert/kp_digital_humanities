@@ -51,40 +51,47 @@ def load_state(file):
 
 def create_sidebar():
     with st.sidebar:
-        with st.sidebar:
-            st.logo('logo.svg')
+        st.logo('logo.svg')
 
-            with st.expander("**Visibility**"):
-                st.markdown(":gray[**Reduce the amount of text covering the screen**]")
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.session_state.show_system_prompt = st.toggle("system", value=True)
-                with col2:
-                    st.session_state.show_user_message = st.toggle("user", value=True)
-                with col3:
-                    st.session_state.show_assistant_message = st.toggle("assistant", value=True)
-                if st.session_state.repeat_count_per_paragraph * len(st.session_state.user_msgs) > 8:
-                    st.session_state.show_system_prompt = False
-                    st.session_state.show_user_message = False
-                    st.session_state.show_assistant_message = False
+        st.markdown(":gray[**Reduce the amount of text covering the screen**]")
+        col1, col2, col3 = st.columns(3)
+        lag_decrease = True if (len(st.session_state.user_msgs)-1) * st.session_state.repeat_count_per_paragraph < 8 else False
+        with col1:
+            st.session_state.show_system_prompt = st.toggle("system", value=lag_decrease, disabled=not lag_decrease)
+        with col2:
+            st.session_state.show_user_message = st.toggle("user", value=lag_decrease, disabled=not lag_decrease)
+        with col3:
+            st.session_state.show_assistant_message = st.toggle("assistant", value=lag_decrease, disabled=not lag_decrease)
 
-            with st.expander("**Predefined questions**"):
-                st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
+        with st.expander("**Predefined questions**"):
+            st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
 
-                # number input -> amount of questions with key = "q"+i -> collect questions afterward
+            # number input -> amount of questions with key = "q"+i -> collect questions afterward
 
-                amount_of_questions = st.number_input("amount of questions", step=1, value=1, min_value=1, max_value=50)
-                for i in range(1, amount_of_questions + 1):
-                    try:
-                        st.text_area(f"question {i}", key=f"q{i}", value=predefined_questions[i])
-                    except KeyError:
-                        st.text_area(f"question {i}", key=f"q{i}", value="Improve your text further!")
+            amount_of_questions = st.number_input("amount of questions", step=1, value=1, min_value=1, max_value=50)
+            for i in range(1, amount_of_questions + 1):
+                try:
+                    st.text_area(f"question {i}", key=f"q{i}", value=predefined_questions[i])
+                except KeyError:
+                    st.text_area(f"question {i}", key=f"q{i}", value="Improve your text further!")
 
-            # predefine user input OwO
-            sorted_keys = sorted((key for key in st.session_state if key.startswith("q")), key=lambda x: int(x[1:]))
-            st.session_state.user_msgs = [st.session_state[key] for key in sorted_keys]
-            st.session_state.response = ""
+        # predefine user input OwO
+        sorted_keys = sorted((key for key in st.session_state if key.startswith("q")), key=lambda x: int(x[1:]))
+        st.session_state.user_msgs = [st.session_state[key] for key in sorted_keys]
+        st.session_state.response = ""
 
+        with st.expander("**Load/Save Session**"):
+            if st.button("Save State"):
+                save_state()
+
+            # Load state file uploader
+            uploaded_file = st.file_uploader("Load State", type="json")
+            if uploaded_file is not None:
+                if st.button("Load State"):
+                    load_state(uploaded_file)
+
+        advanced_settings = st.checkbox("Advanced Settings")
+        if advanced_settings:
             with st.expander("**LLM Parameters**"):
                 st.session_state.temperature = st.slider("**Temperature:** by default 0.97 but adjust to your needs:", min_value=0.0, value=0.97, max_value=10.0)
                 st.session_state.num_predict = st.slider("**Max tokens**: Maximum amount of tokens that are output:", min_value=128, value=512, max_value=2048)
@@ -93,16 +100,6 @@ def create_sidebar():
                 st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
                 st.session_state.seed = st.slider("seed", 0, 128, 69)
                 random.seed(st.session_state.seed)
-            with st.expander("**Load/Save Session**"):
-                if st.button("Save State"):
-                    save_state()
-
-                # Load state file uploader
-                uploaded_file = st.file_uploader("Load State", type="json")
-                if uploaded_file is not None:
-                    if st.button("Load State"):
-                        load_state(uploaded_file)
-
             with st.expander("**Debug**"):
                 col1, col2 = st.columns(2)
                 option = st.selectbox("Which data do you want to display?", ("assistant_msgs", "user_msgs", "ground_truth", "gapped_results"))
