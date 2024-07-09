@@ -41,4 +41,13 @@ print(df)
 # Plotting scores in the specified order: BLEU, BERTScore, METEOR
 scores = px.bar([df['BLEU_Score'].iloc[0], df['BERTScore_F1'].iloc[0], df['METEOR_Score'].iloc[0]])
 
-st.plotly_chart(scores, use_container_width=True)
+st.plotly_chart(scores, use_container_width=False)
+
+# animals=['giraffes', 'orangutans', 'monkeys']
+
+# fig = go.Figure(data=[
+#    go.Bar(name='SF Zoo', x=animals, y=[20, 14, 23]),
+#    go.Bar(name='LA Zoo', x=animals, y=[12, 18, 29])
+# ])
+# fig.update_layout(barmode='group')
+# fig.show()
