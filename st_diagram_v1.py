@@ -1,4 +1,5 @@
 import plotly.graph_objects as go
+import os
 
 
 def plot_scores(all_bleu_scores, all_bert_scores, all_meteor_scores, index_trend=0, show_trend=False):
@@ -49,3 +50,9 @@ def plot_scores(all_bleu_scores, all_bert_scores, all_meteor_scores, index_trend
     )
 
     return fig
+
+
+def save_as_image(fig, filename="diagram1"):
+    if not os.path.exists("images"):
+        os.mkdir("images")
+

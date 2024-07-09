@@ -3,17 +3,13 @@ import io
 import os
 import sys
 
-from ollama import generate
-from enum import Enum
-
-from streamlit.errors import StreamlitAPIException
-
+import pandas as pd
 from evaluate import load
 import numpy as np
 from collections import Counter
 from nltk.util import ngrams
 
-from st_diagram_v1 import plot_scores
+from st_diagram_v1 import plot_scores, save_as_image
 
 import streamlit as st
 from data_processing import load_and_process_data, create_gapped_paragraphs
@@ -43,7 +39,6 @@ def suppress_stderr():
         sys.stderr = stderr
 
 
-# Function to save the session state
 
 
 def file_selector(folder_path='.'):
@@ -117,8 +112,8 @@ def clear_cache(full_reset=True):
         st.session_state.start_time = 0
     if 'first_iteration_time' not in st.session_state:
         st.session_state.first_iteration_time = None
-        if 'estimated_total_time' not in st.session_state:
-            st.session_state.estimated_total_time = None
+    if 'estimated_total_time' not in st.session_state:
+        st.session_state.estimated_total_time = None
 
 
 clear_cache(False)
@@ -177,7 +172,13 @@ def main():
 
     # Create UI components
     create_sidebar()
-    start_computation, st.session_state.repeat_count_per_paragraph, plot_diagram = create_main_buttons()
+    start_computation, save_diagram, plot_diagram = create_main_buttons()
+
+    if st.session_state.gapped_results:
+        st.session_state.paragraph = st.session_state.gapped_results[0]
+    else:
+        st.error("Empty dataset")
+        st.stop()
 
     if plot_diagram:
         try:
@@ -199,55 +200,70 @@ def main():
             # Plot scores
             fig = plot_scores(all_bleu_scores, all_bert_scores, all_meteor_scores)
             st.plotly_chart(fig)
+            if save_diagram:
+                file_path = f"diagram_r{st.session_state.repeat_count_per_paragraph}_q{len(st.session_state.user_msgs)}"
+                save_as_image(fig, file_path)
+                with open("images/" + file_path + ".png", 'rb') as file:
+                    btn = st.download_button(
+                        label="Download PNG",
+                        data=file,
+                        file_name=file_path,
+                        mime="image/png"
+                    )
+            for i, amsg in enumerate(st.session_state.user_msgs):
+                st.markdown(
+                    """
+                    <style>
+                    .stTable {
+                        width: 100% !important;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True
+                )
 
+                st.dataframe(pd.DataFrame(st.session_state.assistant_msgs[i]), width=None)
         except IndexError:
             st.warning("Press \"Start computation\" first or Load from file")
-    try:
-        st.session_state.paragraph = st.session_state.gapped_results[0]
 
-        if start_computation:
-            paragraph_progress, question_progress, time_placeholder, estimate_placeholder = create_progress_bars()
+    if start_computation:
+        paragraph_progress, question_progress, time_placeholder, estimate_placeholder = create_progress_bars()
 
-            st.session_state.start_time = time.time()
+        st.session_state.start_time = time.time()
+        for paragraph_repetition in range(st.session_state.repeat_count_per_paragraph):
+            # Ensure assistant_msgs has enough elements
+            if len(st.session_state.assistant_msgs) <= paragraph_repetition:
+                st.session_state.assistant_msgs.append([])
+            # Update paragraph progress
+            if st.session_state.repeat_count_per_paragraph > 1:
+                paragraph_progress.progress(
+                    (paragraph_repetition + 1) / st.session_state.repeat_count_per_paragraph,
+                    text=f"{paragraph_repetition + 1}{abbreviation(paragraph_repetition + 1)} repetition of {st.session_state.repeat_count_per_paragraph} total repetitions"
+                )
+            # Process LLM responses
+            for question_number in range(len(st.session_state.user_msgs)):
+                process_llm_responses(
+                    paragraph_repetition,
+                    st.session_state.user_msgs,
+                    st.session_state.assistant_msgs,
+                    st.session_state.paragraph
+                )
 
-            for paragraph_repetition in range(st.session_state.repeat_count_per_paragraph):
-                # Ensure assistant_msgs has enough elements
-                if len(st.session_state.assistant_msgs) <= paragraph_repetition:
-                    st.session_state.assistant_msgs.append([])
+                # Update question progress
+                question_progress.progress(
+                    (st.session_state.count + 1) / len(st.session_state.user_msgs),
+                    text=f"processed {st.session_state.count + 1} question{'s' if st.session_state.count > 0 else ''}"
+                )
 
-                # Update paragraph progress
-                if st.session_state.repeat_count_per_paragraph > 1:
-                    paragraph_progress.progress(
-                        (paragraph_repetition + 1) / st.session_state.repeat_count_per_paragraph,
-                        text=f"{paragraph_repetition + 1}{abbreviation(paragraph_repetition + 1)} repetition of {st.session_state.repeat_count_per_paragraph} total repetitions"
-                    )
-
-                # Process LLM responses
-                for question_number in range(len(st.session_state.user_msgs)):
-                    process_llm_responses(
-                        paragraph_repetition,
-                        st.session_state.user_msgs,
-                        st.session_state.assistant_msgs,
-                        st.session_state.paragraph
-                    )
-
-                    # Update question progress
-                    question_progress.progress(
-                        (st.session_state.count + 1) / len(st.session_state.user_msgs),
-                        text=f"processed {st.session_state.count + 1} question{'s' if st.session_state.count > 0 else ''}"
-                    )
-
-                    # Update time estimates
-                    if question_number == 0 and paragraph_repetition == 0:
-                        first_iteration_time = time.time() - st.session_state.start_time
-                        st.session_state.estimated_total_time = first_iteration_time * len(st.session_state.user_msgs) * st.session_state.repeat_count_per_paragraph
-                        estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
-                    else:
-                        elapsed_time = time.time() - st.session_state.start_time
-                        estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
-                        time_placeholder.text(f"Elapsed time: {elapsed_time:.2f} s")
-    except IndexError:
-        st.warning("fill in the dataset")
+                # Update time estimates
+                if question_number == 0 and paragraph_repetition == 0:
+                    first_iteration_time = time.time() - st.session_state.start_time
+                    st.session_state.estimated_total_time = first_iteration_time * len(st.session_state.user_msgs) * st.session_state.repeat_count_per_paragraph
+                    estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
+                else:
+                    elapsed_time = time.time() - st.session_state.start_time
+                    estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
+                    time_placeholder.text(f"Elapsed time: {elapsed_time:.2f} s")
 
 
 if __name__ == "__main__":

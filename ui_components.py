@@ -5,9 +5,11 @@ import random
 from streamlit.errors import StreamlitAPIException
 
 predefined_questions = {
-    1: "In the provided text missing words are marked with a minus sign. Insert the missing words. Only respond with the corrected text. Do not add any summarization.",
-    2: "Improve your text further!",
-    3: "Improve your text further!"
+    1: "Replace all dash characters to restore the missing information!",
+    2: "Do you know about this text?",
+    3: "What genre is this text about?",
+    4: "Who is the author of this text?"
+
 }
 
 debug_namings = {
@@ -62,11 +64,11 @@ def create_sidebar():
             st.session_state.show_user_message = st.toggle("user", value=lag_decrease, disabled=not lag_decrease)
         with col3:
             st.session_state.show_assistant_message = st.toggle("assistant", value=lag_decrease, disabled=not lag_decrease)
-
-        st.session_state.dataset = st.text_area(label="Dataset input")
+        st.session_state.repeat_count_per_paragraph = st.number_input("repeat amount for current paragraph", step=1, value=1, min_value=1, max_value=50)
+        st.session_state.dataset = st.text_area(label="Dataset input", value="\"Bless me, what's that?\" exclaimed Gluck, jumping up. There was nobody there. He looked round the room and under the table and a great many times behind him, but there was certainly nobody there, and he sat down again at the window. This time he didn't speak, but he couldn't help thinking again that it would be very convenient if the river were really all gold. ")
 
         with st.expander("**Predefined questions**"):
-            st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
+            st.text_area("system - *let the LLM know about specific information*", key="s1", value="In the following text each dash character resembles a missing word.")
 
             # number input -> amount of questions with key = "q"+i -> collect questions afterward
 
@@ -127,10 +129,10 @@ def create_main_buttons():
     with col1:
         start_computation = st.button("Start computation")
     with col2:
-        repeat_count = st.number_input("repeat amount for current paragraph", step=1, value=1, min_value=1, max_value=50)
+        save_diagram = st.button("save diagram as image")
     with col3:
         plot_diagram = st.toggle("Plot diagram")
-    return start_computation, repeat_count, plot_diagram
+    return start_computation, save_diagram, plot_diagram
 
 
 def create_progress_bars():
