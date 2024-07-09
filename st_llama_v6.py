@@ -1,10 +1,10 @@
 import contextlib
+from datetime import datetime
 import io
 import json
 import os
 import random
 import sys
-import pandas as pd
 
 import streamlit as st
 from ollama import generate
@@ -21,6 +21,7 @@ from nltk.util import ngrams
 
 import nltk
 
+import time
 
 @contextlib.contextmanager
 def suppress_stderr():
@@ -129,6 +130,13 @@ def clear_cache(full_reset=True):
         st.session_state.show_assistant_message = True
     if 'mask_rate' not in st.session_state:
         st.session_state.mask_rate = 0.3
+    if 'start_time' not in st.session_state:
+        st.session_state.start_time = 0
+    if 'first_iteration_time' not in st.session_state:
+        st.session_state.first_iteration_time = None
+        if 'estimated_total_time' not in st.session_state:
+            st.session_state.estimated_total_time = None
+
 
 
 clear_cache(False)
@@ -428,6 +436,8 @@ def main():
             if st.session_state.repeat_count_per_paragraph > 1:
                 paragraph_progress = st.progress(0, text=f"**processing paragraph the {st.session_state.repeat_count_per_paragraph} {abbreviation(st.session_state.repeat_count_per_paragraph)} time**")
             question_progress = st.progress(0, text=f"about to process **{len(st.session_state.user_msgs)} questions**")
+            time_placeholder = st.empty()
+            estimate_placeholder = st.empty()
     with col2:
         plot_diagram = st.toggle("Plot diagram")
 
@@ -492,7 +502,8 @@ def main():
             print("someone started the computation")
             # display progress paragraphs
             if st.session_state.repeat_count_per_paragraph > 1:
-                paragraph_progress.progress((paragraph_repetition + 1) / st.session_state.repeat_count_per_paragraph, text=f"processed {paragraph_repetition + 1} paragraph{"s" if paragraph_repetition > 0 else ""}")
+                paragraph_progress.progress((paragraph_repetition + 1) / st.session_state.repeat_count_per_paragraph, text=f"{paragraph_repetition + 1}{abbreviation(paragraph_repetition+1)} repetition of {st.session_state.repeat_count_per_paragraph} total repetitions")
+                st.session_state.start_time = time.time()
 
             # system prompt assembly
             st.session_state.system = st.session_state.s1 + "**" + st.session_state.paragraph + "**\n"  # add user prompt and system message
@@ -534,6 +545,14 @@ def main():
                         st.write(stream_response(paragraph_repetition, False))
 
                     question_progress.progress((st.session_state.count + 1) / len(st.session_state.user_msgs), text=f"processed {st.session_state.count + 1} question{"s" if st.session_state.count > 0 else ""}")
+                    if question_number == 0 and paragraph_repetition == 0:
+                        first_iteration_time = time.time() - st.session_state.start_time
+                        st.session_state.estimated_total_time = first_iteration_time * len(st.session_state.user_msgs) * st.session_state.repeat_count_per_paragraph
+                        estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
+                    else:
+                        elapsed_time = time.time() - st.session_state.start_time
+                        estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
+                        time_placeholder.text(f"Elapsed time: {elapsed_time:.2f} s")
 
                 if st.session_state.has_finished:
                     st.session_state.assistant_msgs[paragraph_repetition][st.session_state.count] = st.session_state.response
