@@ -1,5 +1,4 @@
 import contextlib
-from datetime import datetime
 import io
 import json
 import os
@@ -22,6 +21,7 @@ from nltk.util import ngrams
 import nltk
 
 import time
+
 
 @contextlib.contextmanager
 def suppress_stderr():
@@ -138,7 +138,6 @@ def clear_cache(full_reset=True):
             st.session_state.estimated_total_time = None
 
 
-
 clear_cache(False)
 
 # tweak-able parameters for llama3 generate
@@ -200,19 +199,6 @@ def calculate_bleu(reference, candidate, max_n=4):
 def sidebar():
     with st.sidebar:
         st.logo('logo.svg')
-        with st.expander("**General Stuff**"):
-            # displaying the scraped paragraphs
-            st.session_state.repeat_count_per_paragraph = st.number_input("repeat amount for current paragraph", step=1, value=1, min_value=1, max_value=50)
-            col1, col2 = st.columns([2, 1])
-            type_of_text_to_display = {
-                "original": st.session_state.content,
-                "removed": st.session_state.gapped_results,
-            }
-            with col2:
-                text_type = st.radio(label="which text to show", options=["original", "removed"])
-            with col1:
-                paragraph_index = st.number_input(label="Start with this paragraph", step=1, min_value=0, max_value=len(type_of_text_to_display[text_type]) - 1)
-            st.write(type_of_text_to_display[text_type][paragraph_index])
 
         with st.expander("**Visibility**"):
             st.markdown(":gray[**Reduce the amount of text covering the screen**]")
@@ -418,6 +404,8 @@ def main():
     # preprocessing
     html = ds.scrape_webpage("https://www.gutenberg.org/files/701/701-h/701-h.htm#chap01")  # collect_website
     content: list[str] = ds.extract_content(html)  # initial text
+
+
     st.session_state.content = ds.process_text(content)  # split into paragraphs
     st.session_state.ground_truth = st.session_state.content  # static
     paragraphs: list[str] = [ds.create_gaps(s, st.session_state.mask_rate) for s in st.session_state.content]  # remove parts based on seed etc.
@@ -428,7 +416,7 @@ def main():
 
     sidebar()
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         start_computation = st.button("Start computation")
@@ -439,6 +427,8 @@ def main():
             time_placeholder = st.empty()
             estimate_placeholder = st.empty()
     with col2:
+        st.session_state.repeat_count_per_paragraph = st.number_input("repeat amount for current paragraph", step=1, value=1, min_value=1, max_value=50)
+    with col3:
         plot_diagram = st.toggle("Plot diagram")
 
     if plot_diagram:
@@ -496,13 +486,13 @@ def main():
             st.session_state.assistant_msgs.append([])
 
         # increment random seed - and increment by one each repetition
-        random.seed(st.session_state.seed+paragraph_repetition)
+        random.seed(st.session_state.seed + paragraph_repetition)
 
         if start_computation:
             print("someone started the computation")
             # display progress paragraphs
             if st.session_state.repeat_count_per_paragraph > 1:
-                paragraph_progress.progress((paragraph_repetition + 1) / st.session_state.repeat_count_per_paragraph, text=f"{paragraph_repetition + 1}{abbreviation(paragraph_repetition+1)} repetition of {st.session_state.repeat_count_per_paragraph} total repetitions")
+                paragraph_progress.progress((paragraph_repetition + 1) / st.session_state.repeat_count_per_paragraph, text=f"{paragraph_repetition + 1}{abbreviation(paragraph_repetition + 1)} repetition of {st.session_state.repeat_count_per_paragraph} total repetitions")
                 st.session_state.start_time = time.time()
 
             # system prompt assembly
