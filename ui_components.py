@@ -63,6 +63,8 @@ def create_sidebar():
         with col3:
             st.session_state.show_assistant_message = st.toggle("assistant", value=lag_decrease, disabled=not lag_decrease)
 
+        st.session_state.dataset = st.text_area(label="Dataset input")
+
         with st.expander("**Predefined questions**"):
             st.text_area("system 1", key="s1", value="The following text is missing one or multiple words. Your task is to listen to the following tasks. ")
 
