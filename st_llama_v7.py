@@ -198,7 +198,7 @@ def main():
                 all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(original_msgs, current_assistants_nth_questions)])
 
             # Plot scores
-            fig = plot_scores(all_bleu_scores, all_bert_scores, all_meteor_scores)
+            fig = plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores)
             st.plotly_chart(fig)
             if save_diagram:
                 file_path = f"diagram_r{st.session_state.repeat_count_per_paragraph}_q{len(st.session_state.user_msgs)}"
