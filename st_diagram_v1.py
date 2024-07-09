@@ -1,7 +1,7 @@
 import plotly.graph_objects as go
 
 
-def plot_scores(all_bleu_scores, all_bert_scores, all_meteor_scores, index_trend=0):
+def plot_scores(all_bleu_scores, all_bert_scores, all_meteor_scores, index_trend=0, show_trend=False):
     # Determine the number of sublists (assuming all score lists have the same structure)
     num_sublists = len(all_bleu_scores)
 
@@ -25,18 +25,19 @@ def plot_scores(all_bleu_scores, all_bert_scores, all_meteor_scores, index_trend
                 offsetgroup=j  # Group boxes for each dataset
             ))
 
-    # Add line plots for the first element of each sublist
-    for data, color, name in zip([all_bleu_scores, all_bert_scores, all_meteor_scores], colors, dataset_names):
-        first_elements = [sublist[index_trend] for sublist in data]
-        fig.add_trace(go.Scatter(
-            x=[f'Q{i}' for i in range(1, len(data) + 1)],
-            y=first_elements,
-            mode='lines+markers',
-            name=f'{name} (First Elements)',
-            line=dict(color=color, dash='solid'),
-            marker=dict(symbol='circle', size=10, color=color),
-            legendgroup=name
-        ))
+    if show_trend:
+        # Add line plots for the first element of each sublist
+        for data, color, name in zip([all_bleu_scores, all_bert_scores, all_meteor_scores], colors, dataset_names):
+            first_elements = [sublist[index_trend] for sublist in data]
+            fig.add_trace(go.Scatter(
+                x=[f'Q{i}' for i in range(1, len(data) + 1)],
+                y=first_elements,
+                mode='lines+markers',
+                name=f'{name} (First Elements)',
+                line=dict(color=color, dash='solid'),
+                marker=dict(symbol='circle', size=10, color=color),
+                legendgroup=name
+            ))
 
     fig.update_layout(
         title='BLEU, BERT and METEOR scores grouped with trend of first repetition',
