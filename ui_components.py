@@ -2,6 +2,7 @@ import json
 import streamlit as st
 import random
 
+import torch
 from streamlit.errors import StreamlitAPIException
 
 predefined_questions = {
@@ -57,7 +58,7 @@ def create_sidebar():
 
         st.markdown(":gray[**Reduce the amount of text covering the screen**]")
         col1, col2, col3 = st.columns(3)
-        lag_decrease = True if (len(st.session_state.user_msgs)-1) * st.session_state.repeat_count_per_paragraph < 8 else False
+        lag_decrease = True if (len(st.session_state.user_msgs) - 1) * st.session_state.repeat_count_per_paragraph < 8 else False
         with col1:
             st.session_state.show_system_prompt = st.toggle("system", value=lag_decrease, disabled=not lag_decrease)
         with col2:
@@ -65,7 +66,8 @@ def create_sidebar():
         with col3:
             st.session_state.show_assistant_message = st.toggle("assistant", value=lag_decrease, disabled=not lag_decrease)
         st.session_state.repeat_count_per_paragraph = st.number_input("repeat amount for current paragraph", step=1, value=1, min_value=1, max_value=50)
-        st.session_state.dataset = st.text_area(label="Dataset input", value="\"Bless me, what's that?\" exclaimed Gluck, jumping up. There was nobody there. He looked round the room and under the table and a great many times behind him, but there was certainly nobody there, and he sat down again at the window. This time he didn't speak, but he couldn't help thinking again that it would be very convenient if the river were really all gold. ")
+        st.session_state.dataset = st.text_area(label="Dataset input",
+                                                value="\"Bless me, what's that?\" exclaimed Gluck, jumping up. There was nobody there. He looked round the room and under the table and a great many times behind him, but there was certainly nobody there, and he sat down again at the window. This time he didn't speak, but he couldn't help thinking again that it would be very convenient if the river were really all gold. ")
 
         with st.expander("**Predefined questions**"):
             st.text_area("system - *let the LLM know about specific information*", key="s1", value="In the following text each dash character resembles a missing word.")
@@ -122,6 +124,35 @@ def create_sidebar():
                     st.warning("Generate some text first")
                 except IndexError:
                     st.warning("Index Error")
+
+        stats = torch.cuda.memory_stats()
+        gpu_id = torch.cuda.current_device()
+        total_memory = torch.cuda.get_device_properties(gpu_id).total_memory
+        allocated_memory = stats["allocated_bytes.all.current"]
+        reserved_memory = stats["reserved_bytes.all.current"]
+        free_memory = total_memory - reserved_memory
+
+        if torch.cuda.is_available():
+            st.info(f"currently there is {round(free_memory / 10 ** 9, 2)} GB of free memory available")
+        else:
+            st.warning("CUDA is currently not available - system might be out of VRAM")
+        st.write(f"Total VRAM: {total_memory / (1024 ** 3):.2f} GB")
+        st.write(f"Allocated Memory: {allocated_memory / (1024 ** 3):.2f} GB")
+        st.write(f"Reserved Memory: {reserved_memory / (1024 ** 3):.2f} GB")
+        st.write(f"Free Memory: {free_memory / (1024 ** 3):.2f} GB")
+        st.markdown(
+            """
+            <style>
+            .stButton > button {
+                width: 100%;
+                margin-top: 10px;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("empty CUDA cache"):
+            torch.cuda.empty_cache()
 
 
 def create_main_buttons():

@@ -40,8 +40,6 @@ def suppress_stderr():
         sys.stderr = stderr
 
 
-
-
 def file_selector(folder_path='.'):
     filenames = os.listdir(folder_path)
     selected_filename = st.selectbox('Select a file', filenames)
@@ -176,8 +174,6 @@ def main():
 
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
 
-
-
     # Create UI components
     create_sidebar()
     random.seed(st.session_state.seed)
@@ -193,6 +189,45 @@ def main():
     else:
         st.error("Empty dataset")
         st.stop()
+
+    if start_computation:
+        paragraph_progress, question_progress, time_placeholder, estimate_placeholder = create_progress_bars()
+
+        st.session_state.start_time = time.time()
+        for paragraph_repetition in range(st.session_state.repeat_count_per_paragraph):
+            # Ensure assistant_msgs has enough elements
+            if len(st.session_state.assistant_msgs) <= paragraph_repetition:
+                st.session_state.assistant_msgs.append([])
+            # Update paragraph progress
+            if st.session_state.repeat_count_per_paragraph > 1:
+                paragraph_progress.progress(
+                    (paragraph_repetition + 1) / st.session_state.repeat_count_per_paragraph,
+                    text=f"{paragraph_repetition + 1}{abbreviation(paragraph_repetition + 1)} repetition of {st.session_state.repeat_count_per_paragraph} total repetitions"
+                )
+            # Process LLM responses
+            for question_number in range(len(st.session_state.user_msgs)):
+                process_llm_responses(
+                    paragraph_repetition,
+                    st.session_state.user_msgs,
+                    st.session_state.assistant_msgs,
+                    st.session_state.paragraph
+                )
+
+                # Update question progress
+                question_progress.progress(
+                    (st.session_state.count + 1) / len(st.session_state.user_msgs),
+                    text=f"processed {st.session_state.count + 1} question{'s' if st.session_state.count > 0 else ''}"
+                )
+
+                # Update time estimates
+                if question_number == 0 and paragraph_repetition == 0:
+                    first_iteration_time = time.time() - st.session_state.start_time
+                    st.session_state.estimated_total_time = first_iteration_time * len(st.session_state.user_msgs) * st.session_state.repeat_count_per_paragraph
+                    estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
+                else:
+                    elapsed_time = time.time() - st.session_state.start_time
+                    estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
+                    time_placeholder.text(f"Elapsed time: {elapsed_time:.2f} s")
 
     if plot_diagram:
         print(f"someone plotted at {time.ctime()}")
@@ -240,45 +275,6 @@ def main():
                 st.dataframe(pd.DataFrame(st.session_state.assistant_msgs[i]), width=None)
         except IndexError:
             st.warning("Press \"Start computation\" first or Load from file")
-
-    if start_computation:
-        paragraph_progress, question_progress, time_placeholder, estimate_placeholder = create_progress_bars()
-
-        st.session_state.start_time = time.time()
-        for paragraph_repetition in range(st.session_state.repeat_count_per_paragraph):
-            # Ensure assistant_msgs has enough elements
-            if len(st.session_state.assistant_msgs) <= paragraph_repetition:
-                st.session_state.assistant_msgs.append([])
-            # Update paragraph progress
-            if st.session_state.repeat_count_per_paragraph > 1:
-                paragraph_progress.progress(
-                    (paragraph_repetition + 1) / st.session_state.repeat_count_per_paragraph,
-                    text=f"{paragraph_repetition + 1}{abbreviation(paragraph_repetition + 1)} repetition of {st.session_state.repeat_count_per_paragraph} total repetitions"
-                )
-            # Process LLM responses
-            for question_number in range(len(st.session_state.user_msgs)):
-                process_llm_responses(
-                    paragraph_repetition,
-                    st.session_state.user_msgs,
-                    st.session_state.assistant_msgs,
-                    st.session_state.paragraph
-                )
-
-                # Update question progress
-                question_progress.progress(
-                    (st.session_state.count + 1) / len(st.session_state.user_msgs),
-                    text=f"processed {st.session_state.count + 1} question{'s' if st.session_state.count > 0 else ''}"
-                )
-
-                # Update time estimates
-                if question_number == 0 and paragraph_repetition == 0:
-                    first_iteration_time = time.time() - st.session_state.start_time
-                    st.session_state.estimated_total_time = first_iteration_time * len(st.session_state.user_msgs) * st.session_state.repeat_count_per_paragraph
-                    estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
-                else:
-                    elapsed_time = time.time() - st.session_state.start_time
-                    estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
-                    time_placeholder.text(f"Elapsed time: {elapsed_time:.2f} s")
 
 
 if __name__ == "__main__":
