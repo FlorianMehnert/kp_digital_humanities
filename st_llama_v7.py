@@ -195,6 +195,7 @@ def main():
         st.stop()
 
     if plot_diagram:
+        print(f"someone plotted at {time.time()}")
         try:
             # Calculate scores
             assistant_msgs_size = len(st.session_state.assistant_msgs)
