@@ -18,6 +18,7 @@ from ui_components import create_sidebar, create_main_buttons, create_progress_b
 from llm_processing import process_llm_responses
 
 import nltk
+import random
 
 import time
 
@@ -115,6 +116,16 @@ def clear_cache(full_reset=True):
         st.session_state.first_iteration_time = None
     if 'estimated_total_time' not in st.session_state:
         st.session_state.estimated_total_time = None
+    if 'temperature' not in st.session_state:
+        st.session_state.temperature = 0.97
+    if 'num_predict' not in st.session_state:
+        st.session_state.num_predict = 512
+    if 'top_p' not in st.session_state:
+        st.session_state.top_p = 0.9
+    if 'mask_rate' not in st.session_state:
+        st.session_state.mask_rate = 0.3
+    if 'seed' not in st.session_state:
+        st.session_state.seed = 69
 
 
 clear_cache(False)
