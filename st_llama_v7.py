@@ -1,7 +1,6 @@
 import contextlib
 import io
 import os
-import random
 import sys
 
 import pandas as pd
@@ -177,15 +176,17 @@ def main():
 
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
 
-    # Load and process data
-    st.session_state.content = load_and_process_data()
-    st.session_state.ground_truth = st.session_state.content
-    st.session_state.gapped_results = create_gapped_paragraphs(st.session_state.content, st.session_state.mask_rate)
+
 
     # Create UI components
     create_sidebar()
     random.seed(st.session_state.seed)
     start_computation, save_diagram, plot_diagram = create_main_buttons()
+
+    # Load and process data
+    st.session_state.content = load_and_process_data()
+    st.session_state.ground_truth = st.session_state.content
+    st.session_state.gapped_results = create_gapped_paragraphs(st.session_state.content, st.session_state.mask_rate)
 
     if st.session_state.gapped_results:
         st.session_state.paragraph = st.session_state.gapped_results[0]
