@@ -1,7 +1,10 @@
 from enum import Enum
 
 import streamlit as st
+import torch
 from ollama import generate
+
+from cuda_stuffs import update_cuda_stats_at_progressbar
 
 # construct llama3 prompts
 begin_token = "<|begin_of_text|>"
@@ -79,7 +82,7 @@ def stream_response(idx: int, stream=True):
         return response.get("response")
 
 
-def process_llm_responses(paragraph_repetition, user_msgs, assistant_msgs, paragraph):
+def process_llm_responses(paragraph_repetition, user_msgs, assistant_msgs, paragraph, progress):
     st.session_state.system = st.session_state.s1 + "**" + paragraph + "**\n"
 
     if st.session_state.show_system_prompt:
@@ -115,7 +118,11 @@ def process_llm_responses(paragraph_repetition, user_msgs, assistant_msgs, parag
                     st.write(stream_response(paragraph_repetition))
             else:
                 st.write(stream_response(paragraph_repetition, False))
-
+            progress.progress(
+                (st.session_state.count + 1) / len(st.session_state.user_msgs),
+                text=f"processed {st.session_state.count + 1} question{'s' if st.session_state.count > 0 else ''}"
+            )
+            update_cuda_stats_at_progressbar()
         if st.session_state.has_finished:
             assistant_msgs[paragraph_repetition][st.session_state.count] = st.session_state.response
             st.session_state.response = ""

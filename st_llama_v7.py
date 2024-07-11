@@ -123,6 +123,10 @@ def clear_cache(full_reset=True):
         st.session_state.mask_rate = 0.3
     if 'seed' not in st.session_state:
         st.session_state.seed = 69
+    if 'disabled' not in st.session_state:
+        st.session_state.disabled = False
+    if 'vram_empty' not in st.session_state:
+        st.session_state.vram_empty = None
 
 
 clear_cache(False)
@@ -205,32 +209,27 @@ def main():
                     text=f"{paragraph_repetition + 1}{abbreviation(paragraph_repetition + 1)} repetition of {st.session_state.repeat_count_per_paragraph} total repetitions"
                 )
             # Process LLM responses
-            for question_number in range(len(st.session_state.user_msgs)):
-                process_llm_responses(
-                    paragraph_repetition,
-                    st.session_state.user_msgs,
-                    st.session_state.assistant_msgs,
-                    st.session_state.paragraph
-                )
+            process_llm_responses(
+                paragraph_repetition,
+                st.session_state.user_msgs,
+                st.session_state.assistant_msgs,
+                st.session_state.paragraph,
+                question_progress
+            )
 
-                # Update question progress
-                question_progress.progress(
-                    (st.session_state.count + 1) / len(st.session_state.user_msgs),
-                    text=f"processed {st.session_state.count + 1} question{'s' if st.session_state.count > 0 else ''}"
-                )
-
-                # Update time estimates
-                if question_number == 0 and paragraph_repetition == 0:
-                    first_iteration_time = time.time() - st.session_state.start_time
-                    st.session_state.estimated_total_time = first_iteration_time * len(st.session_state.user_msgs) * st.session_state.repeat_count_per_paragraph
-                    estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
-                else:
-                    elapsed_time = time.time() - st.session_state.start_time
-                    estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
-                    time_placeholder.text(f"Elapsed time: {elapsed_time:.2f} s")
+            # Update time estimates
+            if paragraph_repetition == 0:
+                first_iteration_time = time.time() - st.session_state.start_time
+                st.session_state.estimated_total_time = first_iteration_time * len(st.session_state.user_msgs) * st.session_state.repeat_count_per_paragraph
+                estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
+            else:
+                elapsed_time = time.time() - st.session_state.start_time
+                estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
+                time_placeholder.text(f"Elapsed time: {elapsed_time:.2f} s")
 
     if plot_diagram:
         print(f"someone plotted at {time.ctime()}")
+
         try:
             # Calculate scores
             assistant_msgs_size = len(st.session_state.assistant_msgs)
@@ -241,6 +240,11 @@ def main():
             all_bleu_scores = []
 
             for answer_index in range(len(st.session_state.user_msgs)):
+
+                # update cuda progressbar
+                from cuda_stuffs import update_cuda_stats_at_progressbar
+                update_cuda_stats_at_progressbar()
+
                 current_assistants_nth_questions = [msg[answer_index] for msg in st.session_state.assistant_msgs]
 
                 all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_questions, references=original_msgs, lang="en")['f1'])
@@ -248,18 +252,22 @@ def main():
                 all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(original_msgs, current_assistants_nth_questions)])
 
             # Plot scores
-            fig = plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores)
-            st.plotly_chart(fig)
+            st.session_state.fig = plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores)
+            st.plotly_chart(st.session_state.fig)
             if save_diagram:
                 file_path = f"diagram_r{st.session_state.repeat_count_per_paragraph}_q{len(st.session_state.user_msgs)}"
-                save_as_image(fig, file_path)
-                with open("images/" + file_path + ".png", 'rb') as file:
-                    btn = st.download_button(
-                        label="Download PNG",
-                        data=file,
-                        file_name=file_path,
-                        mime="image/png"
-                    )
+                save_as_image(st.session_state.fig, file_path)
+                time.sleep(3)
+                try:
+                    with open("images/" + file_path + ".png", 'rb') as file:
+                        st.download_button(
+                            label="Download PNG",
+                            data=file,
+                            file_name=file_path,
+                            mime="image/png"
+                        )
+                except FileNotFoundError:
+                    st.toast("the image could not be created, try save image again :)")
             for i, amsg in enumerate(st.session_state.user_msgs):
                 st.markdown(
                     """

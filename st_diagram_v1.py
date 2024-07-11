@@ -55,4 +55,5 @@ def plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores, index_trend
 def save_as_image(fig, filename="diagram1"):
     if not os.path.exists("images"):
         os.mkdir("images")
+    fig.write_image(f"images/{filename}.png", format="png")
 
