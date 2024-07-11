@@ -1,6 +1,7 @@
 import contextlib
 import io
 import os
+import random
 import sys
 
 import pandas as pd
@@ -135,7 +136,7 @@ def calculate_bleu(reference, candidate, max_n=4):
     if len(cand_tokens) == 0:
         return 0
 
-    clip_length = max(1, len(cand_tokens) - max_n + 1)
+    max(1, len(cand_tokens) - max_n + 1)
 
     clipped_counts = {}
     for n in range(1, max_n + 1):
@@ -172,6 +173,7 @@ def main():
 
     # Create UI components
     create_sidebar()
+    random.seed(st.session_state.seed)
     start_computation, save_diagram, plot_diagram = create_main_buttons()
 
     if st.session_state.gapped_results:

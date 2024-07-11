@@ -103,7 +103,7 @@ def create_sidebar():
             with st.expander("**Obfuscation Parameters**"):
                 st.session_state.mask_rate = st.slider("mask rate", 0.0, 1.0, 0.3)
                 st.session_state.seed = st.slider("seed", 0, 128, 69)
-                random.seed(st.session_state.seed)
+
             with st.expander("**Debug**"):
                 col1, col2 = st.columns(2)
                 option = st.selectbox("Which data do you want to display?", ("assistant_msgs", "user_msgs", "ground_truth", "gapped_results"))
