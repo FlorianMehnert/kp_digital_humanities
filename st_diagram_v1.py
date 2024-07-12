@@ -4,7 +4,6 @@ import os
 
 def plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores, index_trend=0, show_trend=False):
     # Determine the number of sublists (assuming all score lists have the same structure)
-    num_sublists = len(all_bleu_scores)
 
     # Create the Plotly figure
     fig = go.Figure()
