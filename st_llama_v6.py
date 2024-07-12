@@ -43,7 +43,7 @@ def save_state():
     json_data = json.dumps(state_data)
     st.download_button(
         label="Download state",
-        file_name="session_state.json",
+        file_name="sessionstate/session_state.json",
         mime="application/json",
         data=json_data
     )
