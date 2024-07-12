@@ -1,5 +1,11 @@
 import plotly.graph_objects as go
 import os
+import numpy as np
+from collections import Counter
+from nltk.util import ngrams
+import nltk
+from evaluate import load
+from streamlit import cache_resource as cache_resource
 
 
 def plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores, index_trend=0, show_trend=False):
@@ -56,3 +62,33 @@ def save_as_image(fig, filename="diagram1"):
         os.mkdir("images")
     fig.write_image(f"images/{filename}.png", format="png")
 
+
+def calculate_bleu(reference, candidate, max_n=4):
+    def count_ngrams(sentence, n):
+        return Counter(ngrams(sentence, n))
+
+    ref_tokens = nltk.word_tokenize(reference.lower())
+    cand_tokens = nltk.word_tokenize(candidate.lower())
+
+    if len(cand_tokens) == 0:
+        return 0
+
+    max(1, len(cand_tokens) - max_n + 1)
+
+    clipped_counts = {}
+    for n in range(1, max_n + 1):
+        ref_ngram_counts = count_ngrams(ref_tokens, n)
+        cand_ngram_counts = count_ngrams(cand_tokens, n)
+        clipped_counts[n] = sum(min(cand_ngram_counts[ngram], ref_ngram_counts[ngram]) for ngram in cand_ngram_counts)
+
+    brevity_penalty = min(1, np.exp(1 - len(ref_tokens) / len(cand_tokens)))
+
+    geometric_mean = np.exp(np.sum([np.log(clipped_counts[n] / max(1, len(cand_tokens) - n + 1)) for n in range(1, max_n + 1)]) / max_n)
+
+    return brevity_penalty * geometric_mean
+
+
+# Load the metrics
+@cache_resource
+def load_metrics():
+    return load("bertscore"), load("meteor")

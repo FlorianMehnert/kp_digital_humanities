@@ -2,16 +2,11 @@ import contextlib
 import io
 import os
 import sys
+import streamlit as st
 
 import pandas as pd
-from evaluate import load
-import numpy as np
-from collections import Counter
-from nltk.util import ngrams
 
-from st_diagram_v1 import plot_scores, save_as_image
-
-import streamlit as st
+from st_diagram_v1 import plot_scores, save_as_image, load_metrics, calculate_bleu
 from data_processing import load_and_process_data, create_gapped_paragraphs
 from ui_components import create_sidebar, create_main_buttons, create_progress_bars
 from llm_processing import process_llm_responses
@@ -20,11 +15,6 @@ import nltk
 import random
 
 import time
-
-st.set_page_config(
-    page_title="OCR inpainting",
-    page_icon="🦙"
-)
 
 
 @contextlib.contextmanager
@@ -48,12 +38,6 @@ def file_selector(folder_path='.'):
 
 # Download necessary NLTK data
 nltk.download('punkt', quiet=True)
-
-
-# Load the metrics
-@st.cache_resource
-def load_metrics():
-    return load("bertscore"), load("meteor")
 
 
 bertscore, meteor = load_metrics()
@@ -137,30 +121,6 @@ st.session_state.num_predict = 2048
 st.session_state.top_p = 0.9
 st.session_state.something_downloadable = False
 
-
-def calculate_bleu(reference, candidate, max_n=4):
-    def count_ngrams(sentence, n):
-        return Counter(ngrams(sentence, n))
-
-    ref_tokens = nltk.word_tokenize(reference.lower())
-    cand_tokens = nltk.word_tokenize(candidate.lower())
-
-    if len(cand_tokens) == 0:
-        return 0
-
-    max(1, len(cand_tokens) - max_n + 1)
-
-    clipped_counts = {}
-    for n in range(1, max_n + 1):
-        ref_ngram_counts = count_ngrams(ref_tokens, n)
-        cand_ngram_counts = count_ngrams(cand_tokens, n)
-        clipped_counts[n] = sum(min(cand_ngram_counts[ngram], ref_ngram_counts[ngram]) for ngram in cand_ngram_counts)
-
-    brevity_penalty = min(1, np.exp(1 - len(ref_tokens) / len(cand_tokens)))
-
-    geometric_mean = np.exp(np.sum([np.log(clipped_counts[n] / max(1, len(cand_tokens) - n + 1)) for n in range(1, max_n + 1)]) / max_n)
-
-    return brevity_penalty * geometric_mean
 
 
 def abbreviation(length: int) -> str:

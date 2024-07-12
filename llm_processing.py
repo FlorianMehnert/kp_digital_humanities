@@ -1,7 +1,6 @@
 from enum import Enum
 
 import streamlit as st
-import torch
 from ollama import generate
 
 from cuda_stuffs import update_cuda_stats_at_progressbar
@@ -91,7 +90,6 @@ def process_llm_responses(paragraph_repetition, user_msgs, assistant_msgs, parag
             st.write(st.session_state.system)
 
     st.session_state.count = -1
-
     for question_number in range(len(user_msgs)):
         if st.session_state.has_finished:
             st.session_state.count += 1

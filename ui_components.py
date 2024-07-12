@@ -1,6 +1,5 @@
 import json
 import streamlit as st
-import random
 
 import torch
 from streamlit.errors import StreamlitAPIException
@@ -132,7 +131,7 @@ def create_sidebar():
                     st.warning("Index Error")
 
         if torch.cuda.is_available():
-            st.info(f"currently there is {round(st.session_state.free_mem / 10 ** 9, 2)} GB of free memory available")
+            st.info(f"CUDA is available")
         else:
             st.warning("CUDA is currently not available - system might be out of VRAM")
             st.toast("CUDA is currently not available - system might be out of VRAM")
