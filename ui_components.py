@@ -35,7 +35,8 @@ def save_state():
         label="Download state",
         file_name="sessionstate/session_state.json",
         mime="application/json",
-        data=json_data
+        data=json_data,
+        use_container_width=True
     )
 
 
@@ -89,15 +90,13 @@ def create_sidebar():
         st.session_state.user_msgs = [st.session_state[key] for key in sorted_keys]
         st.session_state.response = ""
 
-        with st.expander("**Load/Save Session**"):
-            if st.button("Save State"):
-                save_state()
+        save_state()
 
-            # Load state file uploader
-            uploaded_file = st.file_uploader("Load State", type="json")
-            if uploaded_file is not None:
-                if st.button("Load State"):
-                    load_state(uploaded_file)
+        # Load state file uploader
+        uploaded_file = st.file_uploader("Load State", type="json")
+        if uploaded_file is not None:
+            if st.button("Load State"):
+                load_state(uploaded_file)
 
         advanced_settings = st.checkbox("Advanced Settings")
         if advanced_settings:
