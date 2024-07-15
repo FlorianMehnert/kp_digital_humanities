@@ -5,7 +5,6 @@ import torch
 from streamlit.errors import StreamlitAPIException
 
 from cuda_stuffs import update_cuda_stats_at_progressbar
-from diagram_utils import draw_whole_diagram_area
 
 predefined_questions = {
     1: "Please restore the given text fragment.",
