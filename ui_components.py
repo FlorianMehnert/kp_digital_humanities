@@ -65,28 +65,24 @@ def create_sidebar():
         st.logo('logo.svg')
 
         st.markdown(":gray[**Reduce the amount of text covering the screen**]")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.session_state.show_system_prompt = st.toggle("system", value=not st.session_state.disabled, disabled=st.session_state.disabled)
-        with col2:
-            st.session_state.show_user_message = st.toggle("user", value=not st.session_state.disabled, disabled=st.session_state.disabled)
-        with col3:
-            st.session_state.show_assistant_message = st.toggle("assistant", value=not st.session_state.disabled, disabled=st.session_state.disabled)
+        st.session_state.show_system_prompt = False
+        st.session_state.show_user_message = False
+        st.session_state.show_assistant_message = False
         st.session_state.repeat_count_per_paragraph = st.number_input("repeat amount for current paragraph", step=1, value=1, min_value=1, max_value=50, on_change=disable_output())
         st.session_state.dataset = st.text_area(label="Dataset input",
                                                 value="\"Bless me, what's that?\" exclaimed Gluck, jumping up. There was nobody there. He looked round the room and under the table and a great many times behind him, but there was certainly nobody there, and he sat down again at the window. This time he didn't speak, but he couldn't help thinking again that it would be very convenient if the river were really all gold. ")
 
-        with st.expander("**Predefined questions**"):
-            st.text_area("system - *let the LLM know about specific information*", key="s1", value="In the following text each dash character resembles a missing word.")
+        st.write("Predefined question(s)")
+        st.text_area("system - *let the LLM know about specific information*", key="s1", value="In the following text each dash character resembles a missing word.")
 
-            # number input -> amount of questions with key = "q"+i -> collect questions afterward
+        # number input -> amount of questions with key = "q"+i -> collect questions afterward
 
-            amount_of_questions = st.number_input("amount of questions", step=1, value=1, min_value=1, max_value=50, on_change=disable_output())
-            for i in range(1, amount_of_questions + 1):
-                try:
-                    st.text_area(f"question {i}", key=f"q{i}", value=predefined_questions[i])
-                except KeyError:
-                    st.text_area(f"question {i}", key=f"q{i}", value="Improve your text further!")
+        amount_of_questions = st.number_input("amount of questions", step=1, value=1, min_value=1, max_value=50, on_change=disable_output())
+        for i in range(1, amount_of_questions + 1):
+            try:
+                st.text_area(f"question {i}", key=f"q{i}", value=predefined_questions[i])
+            except KeyError:
+                st.text_area(f"question {i}", key=f"q{i}", value="Improve your text further!")
 
         # predefine user input OwO
         sorted_keys = sorted((key for key in st.session_state if key.startswith("q")), key=lambda x: int(x[1:]))
