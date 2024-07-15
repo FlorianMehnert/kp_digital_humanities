@@ -1,3 +1,6 @@
+import time
+
+import pandas as pd
 import plotly.graph_objects as go
 import os
 import numpy as np
@@ -8,6 +11,9 @@ from evaluate import load
 from streamlit import cache_resource as cache_resource
 import plotly.io as pio
 import base64
+import streamlit as st
+
+from cuda_stuffs import update_cuda_stats_at_progressbar
 
 
 def plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores, index_trend=0, show_trend=False):
@@ -101,3 +107,95 @@ def plot_to_png(fig):
     img_bytes = pio.to_image(fig, format="png")
     encoding = base64.b64encode(img_bytes).decode()
     return encoding
+
+
+def draw_whole_diagram_area():
+    try:
+        print(f"someone plotted at {time.ctime()}")
+        # Calculate scores
+        assistant_msgs_size = len(st.session_state.assistant_msgs)
+
+        # placeholders
+        original_msgs = [st.session_state.ground_truth[0]] * assistant_msgs_size
+        all_bert_scores = []
+        all_meteor_scores = []
+        all_bleu_scores = []
+
+        for answer_index in range(len(st.session_state.user_msgs)):
+            # update cuda progressbar
+            update_cuda_stats_at_progressbar()
+
+            current_assistants_nth_questions = [msg[answer_index] for msg in st.session_state.assistant_msgs]
+            bertscore, meteor = load_metrics()
+            all_bert_scores.append(bertscore.compute(predictions=current_assistants_nth_questions, references=original_msgs, lang="en")['f1'])
+            all_meteor_scores.append([meteor.compute(predictions=[predicted], references=[ground_truth])['meteor'] for ground_truth, predicted in zip(original_msgs, current_assistants_nth_questions)])
+            all_bleu_scores.append([calculate_bleu(original, altered) for original, altered in zip(original_msgs, current_assistants_nth_questions)])
+
+        st.session_state.BLEU = all_bleu_scores
+        st.session_state.BERT = all_bert_scores
+        st.session_state.METEOR = all_meteor_scores
+        # Plot scores
+        st.subheader("BLEU, METEOR and BERT scores")
+        st.session_state.fig = plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores)
+        st.plotly_chart(st.session_state.fig)
+        st.download_button(
+            label="Download PNG",
+            data=plot_to_png(st.session_state.fig),
+            file_name=f"diagram_r{st.session_state.repeat_count_per_paragraph}_q{len(st.session_state.user_msgs)}.png",
+            mime="image/png",
+            use_container_width=True
+        )
+
+        for _ in range(len(st.session_state.user_msgs)):
+            st.markdown(
+                """
+                <style>
+                .stTable {
+                    width: 100% !important;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+
+            to_be_saved = ["system", "ground_truth", "gapped_results", "assistant_msgs", "user_msgs", "BLEU", "BERT", "METEOR"]
+            try:
+                settings_to_download = {k: v for k, v in st.session_state.items() if k in to_be_saved}
+                df = pd.DataFrame([(k, v if k == 'system' else v[0] if isinstance(v[0], str) else v[0][0] if len(v[0]) > 0 else v[0])
+                                   for k, v in settings_to_download.items()],
+                                  columns=['Setting', 'Value'])
+
+                # Define the desired sort order and new names
+                sort_order = ['ground_truth', 'gapped_results', 'system', 'user_msgs', 'assistant_msgs', 'BLEU', 'METEOR', 'BERT']
+                new_names = {
+                    'gapped_results': 'incomplete',
+                    'ground_truth': 'ground truth',
+                    'system': 'system message',
+                    'user_msgs': 'question',
+                    'assistant_msgs': 'LLM response'
+                }
+
+                # Create a categorical column with the specified order
+                df['SortOrder'] = pd.Categorical(df['Setting'], categories=sort_order, ordered=True)
+
+                # Sort the DataFrame
+                df_sorted = df.sort_values('SortOrder')
+
+                # Replace \- with - in the gapped_results row and system message
+                df_sorted['Value'] = df_sorted['Value'].replace('\\\\-', '-', regex=True)
+
+                # Rename the settings
+                df_sorted['Setting'] = df_sorted['Setting'].replace(new_names)
+
+                # Drop the SortOrder column
+                df_sorted = df_sorted.drop('SortOrder', axis=1)
+
+                # Reset the index
+                df_sorted = df_sorted.reset_index(drop=True)
+
+                st.subheader("Responses as dataframe")
+                st.dataframe(df_sorted)
+            except Exception as e:
+                st.warning(e)
+    except IndexError:
+        st.toast("error")

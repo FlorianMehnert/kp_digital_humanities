@@ -5,9 +5,10 @@ import torch
 from streamlit.errors import StreamlitAPIException
 
 from cuda_stuffs import update_cuda_stats_at_progressbar
+from diagram_utils import draw_whole_diagram_area
 
 predefined_questions = {
-    1: "Please restore the given text fragment",
+    1: "Please restore the given text fragment.",
     2: "Do you know about this text?",
     3: "What genre is this text about?",
     4: "Who is the author of this text?"
@@ -51,7 +52,8 @@ def load_state(file):
         except json.JSONDecodeError:
             st.error("Invalid JSON file. Please upload a valid session state file.")
         except StreamlitAPIException:
-            pass
+            st.toast("api exception in load state")
+        st.toast("finished")
 
 
 def disable_output():
@@ -96,7 +98,10 @@ def create_sidebar():
         uploaded_file = st.file_uploader("Load State", type="json")
         if uploaded_file is not None:
             if st.button("Load State"):
-                load_state(uploaded_file)
+                st.session_state.load_state = True
+                st.session_state.to_be_loaded_state = uploaded_file
+            else:
+                st.session_state.load_state = False
 
         advanced_settings = st.checkbox("Advanced Settings")
         if advanced_settings:
