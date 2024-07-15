@@ -8,6 +8,7 @@ import time
 import nltk
 import streamlit as st
 from _plotly_utils.exceptions import PlotlyError
+from safetensors import torch
 
 from cuda_stuffs import update_cuda_stats_at_progressbar
 from data_processing import load_and_process_data, create_gapped_paragraphs
@@ -139,7 +140,7 @@ def abbreviation(length: int) -> str:
 
 def main():
     # Load metrics
-    bertscore, meteor = load_metrics()
+    load_metrics()
 
     st.title(f"Llama {"".join([":llama:" for _ in range(3)])} playground")
 
@@ -201,7 +202,13 @@ def main():
     except Exception as e:
         st.toast(e)
 
-    fig = draw_whole_diagram_area()
+    try:
+        fig = draw_whole_diagram_area()
+    except Exception as e:
+        print(e, "emptied cuda cache as result of draw whole diagram area")
+        st.toast("auto empty cuda cache")
+        torch.cuda.empty_cache()
+        update_cuda_stats_at_progressbar()
     try:
         st.plotly_chart(fig)
     except PlotlyError:

@@ -12,6 +12,10 @@ from streamlit import cache_resource as cache_resource
 import plotly.io as pio
 import base64
 import streamlit as st
+from nltk.tokenize import word_tokenize
+from bert_score import score as bert_score
+from nltk.translate.meteor_score import meteor_score
+from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 
 from cuda_stuffs import update_cuda_stats_at_progressbar
 
@@ -109,6 +113,33 @@ def plot_to_png(fig):
     return encoding
 
 
+def get_nth_or_item(item, n):
+    if isinstance(item, list):
+        if len(item) > n:
+            return item[n] if not isinstance(item[n], list) else item[n][0]
+        elif len(item) > 0:
+            return item[0] if not isinstance(item[0], list) else item[0][0]
+        else:
+            return ''
+    return item
+
+
+def compute_scores(reference, candidate):
+    # Tokenize the sentences
+
+    # Compute BLEU score
+    bleu = calculate_bleu(reference, candidate)
+
+    _, meteorscore = load_metrics()
+
+    # Compute METEOR score
+    meteor = meteorscore.compute(predictions=[candidate], references=[reference])['meteor']
+
+    # Compute BERTScore
+
+    return bleu, meteor
+
+
 def draw_whole_diagram_area():
     try:
         print(f"someone plotted at {time.ctime()}")
@@ -160,13 +191,17 @@ def draw_whole_diagram_area():
 
             to_be_saved = ["system", "ground_truth", "gapped_results", "assistant_msgs", "user_msgs", "BLEU", "BERT", "METEOR"]
             try:
+
+                dataframe_index = st.number_input("Index of the resulting data", step=1, max_value=50)
+
                 settings_to_download = {k: v for k, v in st.session_state.items() if k in to_be_saved}
-                df = pd.DataFrame([(k, v if k == 'system' else v[0] if isinstance(v[0], str) else v[0][0] if len(v[0]) > 0 else v[0])
+
+                df = pd.DataFrame([(k, get_nth_or_item(v, dataframe_index))
                                    for k, v in settings_to_download.items()],
                                   columns=['Setting', 'Value'])
 
                 # Define the desired sort order and new names
-                sort_order = ['ground_truth', 'gapped_results', 'system', 'user_msgs', 'assistant_msgs', 'BLEU', 'METEOR', 'BERT']
+                sort_order = ['ground_truth', 'gapped_results', 'system', 'user_msgs', 'assistant_msgs', 'BLEU', 'METEOR']
                 new_names = {
                     'gapped_results': 'incomplete',
                     'ground_truth': 'ground truth',
@@ -181,11 +216,21 @@ def draw_whole_diagram_area():
                 # Sort the DataFrame
                 df_sorted = df.sort_values('SortOrder')
 
-                # Replace \- with - in the gapped_results row and system message
-                df_sorted['Value'] = df_sorted['Value'].replace('\\\\-', '-', regex=True)
+                # Replace \- with - in all rows
+                df_sorted['Value'] = df_sorted['Value'].replace('\\-', '-', regex=True)
 
                 # Rename the settings
                 df_sorted['Setting'] = df_sorted['Setting'].replace(new_names)
+
+                # Recompute scores
+                ground_truth = df_sorted[df_sorted['Setting'] == 'ground truth']['Value'].values[0]
+                llm_response = df_sorted[df_sorted['Setting'] == 'LLM response']['Value'].values[0]
+
+                bleu, meteor = compute_scores(ground_truth, llm_response)
+
+                # Update scores in the DataFrame
+                df_sorted.loc[df_sorted['Setting'] == 'BLEU', 'Value'] = bleu
+                df_sorted.loc[df_sorted['Setting'] == 'METEOR', 'Value'] = meteor
 
                 # Drop the SortOrder column
                 df_sorted = df_sorted.drop('SortOrder', axis=1)
@@ -193,7 +238,7 @@ def draw_whole_diagram_area():
                 # Reset the index
                 df_sorted = df_sorted.reset_index(drop=True)
 
-                st.subheader("Responses as dataframe")
+                st.subheader("Data to investigate :face_with_monocle:")
                 st.dataframe(df_sorted)
             except Exception as e:
                 st.warning(e)

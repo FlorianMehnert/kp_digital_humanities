@@ -66,7 +66,6 @@ def create_sidebar():
     with st.sidebar:
         st.logo('logo.svg')
 
-        st.markdown(":gray[**Reduce the amount of text covering the screen**]")
         st.session_state.show_system_prompt = False
         st.session_state.show_user_message = False
         st.session_state.show_assistant_message = False
