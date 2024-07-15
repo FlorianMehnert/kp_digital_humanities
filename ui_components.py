@@ -7,7 +7,7 @@ from streamlit.errors import StreamlitAPIException
 from cuda_stuffs import update_cuda_stats_at_progressbar
 
 predefined_questions = {
-    1: "Replace all dash characters to restore the missing information!",
+    1: "Please restore the given text fragment",
     2: "Do you know about this text?",
     3: "What genre is this text about?",
     4: "Who is the author of this text?"
@@ -70,10 +70,10 @@ def create_sidebar():
         st.session_state.show_assistant_message = False
         st.session_state.repeat_count_per_paragraph = st.number_input("repeat amount for current paragraph", step=1, value=1, min_value=1, max_value=50, on_change=disable_output())
         st.session_state.dataset = st.text_area(label="Dataset input",
-                                                value="\"Bless me, what's that?\" exclaimed Gluck, jumping up. There was nobody there. He looked round the room and under the table and a great many times behind him, but there was certainly nobody there, and he sat down again at the window. This time he didn't speak, but he couldn't help thinking again that it would be very convenient if the river were really all gold. ")
+                                                value="After experiencing previous OCR image recognition, a series of actionable text data will be obtained, which contains useful information required for the task, as well as a large number of irrelevant characters such as spaces and line breaks. Therefore, it is necessary to preprocess the text data first, including removing spaces, line breaks, and formatting specific formatted data. In the preprocessed data, the position information of relevant fields will also be retained, which refers to the relative position and layout rules of the fields in the form. This can help us to better understand the structure and context of the form. For tasks with predefined form templates, this can greatly simplify the difficulty of field matching. We can directly narrow the matching range based on the predefined field position, and for predefined forms, their corresponding fields are also very similar, so field matching can be performed directly on a small scale based on the field names defined in the form template, and filtering can be carried out using simple regular expressions or string matching. However, this approach also has its limitations. For cases where the form framework is not fixed, the usefulness of field position information may not be as obvious, as the field positions may vary greatly across different forms. In addition, this method cannot accurately fill in some fields with different names but similar meanings.")
 
         st.write("Predefined question(s)")
-        st.text_area("system - *let the LLM know about specific information*", key="s1", value="In the following text each dash character resembles a missing word.")
+        st.text_area("system - *let the LLM know about specific information*", key="s1", value="Please fill in the missing characters in the given text fragment from a 2024 scientific literature on OCR and text preprocessing, ensuring that the restoration maintains the original language style, scientific accuracy, and logical flow. In the following text, each dash character represents a missing word. Your task is to follow the instructions to restore the missing text. Please note the response format: output only the complete, restored text itself without adding any additional narrative.")
 
         # number input -> amount of questions with key = "q"+i -> collect questions afterward
 
