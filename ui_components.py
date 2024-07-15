@@ -4,6 +4,8 @@ import streamlit as st
 import torch
 from streamlit.errors import StreamlitAPIException
 
+from cuda_stuffs import update_cuda_stats_at_progressbar
+
 predefined_questions = {
     1: "Replace all dash characters to restore the missing information!",
     2: "Do you know about this text?",
@@ -26,7 +28,7 @@ debug_input_visibility = {
 
 
 def save_state():
-    to_be_saved_things = ["assistant_msgs", "user_msgs", "ground_truth_msgs", "amount_of_to_be_processed_paragraphs", "system"]
+    to_be_saved_things = ["assistant_msgs", "user_msgs", "ground_truth", "amount_of_to_be_processed_paragraphs", "system"]
     state_data = {key: value for key, value in st.session_state.items() if not key.startswith('_') and key in to_be_saved_things}
     json_data = json.dumps(state_data)
     st.download_button(
@@ -129,6 +131,16 @@ def create_sidebar():
                     st.warning("Generate some text first")
                 except IndexError:
                     st.warning("Index Error")
+                clear_cache = st.button("clear cache")
+                if clear_cache:
+                    st.cache_resource.clear()
+                st.session_state.save_whole_state = st.empty()
+                to_be_saved = ["system", "ground_truth", "gapped_results", "assistant_msgs", "user_msgs", "BLEU", "BERT", "METEOR"]
+                settings_to_download = {k: v for k,v in st.session_state.items() if k in to_be_saved}
+                st.session_state.save_whole_state = st.download_button(label="Download whole state",
+                                                       data=json.dumps(settings_to_download),
+                                                       file_name=f"settings.json",
+                                                       help="Click to Download Current Settings")
 
         if torch.cuda.is_available():
             st.info(f"CUDA is available")
@@ -149,6 +161,7 @@ def create_sidebar():
         st.session_state.vram_empty = st.empty()
         if st.button("empty CUDA cache"):
             torch.cuda.empty_cache()
+            update_cuda_stats_at_progressbar()
 
 
 def create_main_buttons():

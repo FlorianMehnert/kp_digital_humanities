@@ -46,12 +46,13 @@ def plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores, index_trend
             ))
 
     fig.update_layout(
-        title='BLEU, METEOR and BERT scores grouped with trend of first repetition',
+        #title='BLEU, METEOR and BERT scores grouped with trend of first repetition',
         yaxis_title='Values',
         xaxis_title='Questions',
         boxmode='group',
         legend_title_text='Datasets',
-        legend=dict(groupclick="toggleitem")
+        legend=dict(groupclick="toggleitem"),
+        yaxis_range=[0,1]
     )
 
     return fig
