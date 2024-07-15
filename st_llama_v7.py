@@ -1,21 +1,19 @@
 import contextlib
 import io
 import os
+import random
 import sys
-import streamlit as st
-
-import pandas as pd
-
-from diagram_utils import plot_scores, save_as_image, load_metrics, calculate_bleu
-from data_processing import load_and_process_data, create_gapped_paragraphs
-from ui_components import create_sidebar, create_main_buttons, create_progress_bars
-from llm_processing import process_llm_responses
-from cuda_stuffs import update_cuda_stats_at_progressbar
+import time
 
 import nltk
-import random
+import pandas as pd
+import streamlit as st
 
-import time
+from cuda_stuffs import update_cuda_stats_at_progressbar
+from data_processing import load_and_process_data, create_gapped_paragraphs
+from diagram_utils import plot_scores, load_metrics, calculate_bleu, plot_to_png
+from llm_processing import process_llm_responses
+from ui_components import create_sidebar, create_main_buttons, create_progress_bars
 
 
 @contextlib.contextmanager
@@ -144,7 +142,7 @@ def main():
     # Create UI components
     create_sidebar()
     random.seed(st.session_state.seed)
-    start_computation, save_diagram, plot_diagram = create_main_buttons()
+    start_computation= create_main_buttons()
 
     # Load and process data
     st.session_state.content = load_and_process_data()
@@ -191,10 +189,10 @@ def main():
                 estimate_placeholder.text(f"Estimated total time: {st.session_state.estimated_total_time:.2f} seconds")
                 time_placeholder.text(f"Elapsed time: {elapsed_time:.2f} s")
 
-    if plot_diagram:
-        print(f"someone plotted at {time.ctime()}")
+
 
         try:
+            print(f"someone plotted at {time.ctime()}")
             # Calculate scores
             assistant_msgs_size = len(st.session_state.assistant_msgs)
             original_msgs = [st.session_state.ground_truth[0]] * assistant_msgs_size
@@ -220,21 +218,15 @@ def main():
             st.subheader("BLEU, METEOR and BERT scores")
             st.session_state.fig = plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores)
             st.plotly_chart(st.session_state.fig)
-            if save_diagram:
-                file_path = f"diagram_r{st.session_state.repeat_count_per_paragraph}_q{len(st.session_state.user_msgs)}"
-                save_as_image(st.session_state.fig, file_path)
-                time.sleep(3)
-                try:
-                    with open("images/" + file_path + ".png", 'rb') as file:
-                        st.download_button(
-                            label="Download PNG",
-                            data=file,
-                            file_name=file_path,
-                            mime="image/png"
-                        )
-                except FileNotFoundError:
-                    st.toast("the image could not be created, try save image again :)")
-            for i, amsg in enumerate(st.session_state.user_msgs):
+            st.download_button(
+                label="Download PNG",
+                data=plot_to_png(st.session_state.fig),
+                file_name=f"diagram_r{st.session_state.repeat_count_per_paragraph}_q{len(st.session_state.user_msgs)}.png",
+                mime="image/png",
+                use_container_width=True
+            )
+
+            for _ in range(len(st.session_state.user_msgs)):
                 st.markdown(
                     """
                     <style>
@@ -286,7 +278,7 @@ def main():
                 except Exception as e:
                     st.warning(e)
         except IndexError:
-            st.warning("Press \"Start computation\" first or Load from file")
+            pass
 
 
 if __name__ == "__main__":

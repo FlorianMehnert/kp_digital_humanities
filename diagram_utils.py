@@ -6,6 +6,8 @@ from nltk.util import ngrams
 import nltk
 from evaluate import load
 from streamlit import cache_resource as cache_resource
+import plotly.io as pio
+import base64
 
 
 def plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores, index_trend=0, show_trend=False):
@@ -52,7 +54,7 @@ def plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores, index_trend
         boxmode='group',
         legend_title_text='Datasets',
         legend=dict(groupclick="toggleitem"),
-        yaxis_range=[0,1]
+        yaxis_range=[0, 1]
     )
 
     return fig
@@ -93,3 +95,9 @@ def calculate_bleu(reference, candidate, max_n=4):
 @cache_resource
 def load_metrics():
     return load("bertscore"), load("meteor")
+
+
+def plot_to_png(fig):
+    img_bytes = pio.to_image(fig, format="png")
+    encoding = base64.b64encode(img_bytes).decode()
+    return encoding

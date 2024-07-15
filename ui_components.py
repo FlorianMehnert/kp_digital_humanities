@@ -161,14 +161,7 @@ def create_sidebar():
 
 
 def create_main_buttons():
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        start_computation = st.button("Start computation", on_click=disable_output())
-    with col2:
-        save_diagram = st.button("save diagram as image")
-    with col3:
-        plot_diagram = st.toggle("Plot diagram")
-    return start_computation, save_diagram, plot_diagram
+    return st.button("Start computation", on_click=disable_output())
 
 
 def create_progress_bars():
