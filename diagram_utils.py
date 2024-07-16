@@ -108,9 +108,7 @@ def load_metrics():
 
 
 def plot_to_png(fig):
-    img_bytes = pio.to_image(fig, format="png")
-    encoding = base64.b64encode(img_bytes).decode()
-    return encoding
+    return pio.to_image(fig, format="png")
 
 
 def get_nth_or_item(item, n):
