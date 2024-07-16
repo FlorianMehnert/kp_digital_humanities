@@ -1,5 +1,5 @@
-# KP digital humanities group 5
-This repo contains some scripts to play around with open source text models (mainly Llama-3-8B).
+# KP digital humanities group 5 
+This repo contains some streamlit applications that help at interacting with Llama3 and plot results as diagrams.
 
 ## llama streamlit app
 To execute this simple app setup a new virtual environment then (for linux) run 

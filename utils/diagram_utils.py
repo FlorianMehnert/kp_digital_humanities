@@ -10,12 +10,7 @@ import nltk
 from evaluate import load
 from streamlit import cache_resource as cache_resource
 import plotly.io as pio
-import base64
 import streamlit as st
-from nltk.tokenize import word_tokenize
-from bert_score import score as bert_score
-from nltk.translate.meteor_score import meteor_score
-from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 
 from cuda_stuffs import update_cuda_stats_at_progressbar
 
@@ -71,8 +66,8 @@ def plot_scores(all_bleu_scores, all_meteor_scores, all_bert_scores, index_trend
 
 
 def save_as_image(fig, filename="diagram1"):
-    if not os.path.exists("images"):
-        os.mkdir("images")
+    if not os.path.exists("../images"):
+        os.mkdir("../images")
     fig.write_image(f"images/{filename}.png", format="png")
 
 

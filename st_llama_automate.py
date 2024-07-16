@@ -11,8 +11,8 @@ from _plotly_utils.exceptions import PlotlyError
 from safetensors import torch
 
 from cuda_stuffs import update_cuda_stats_at_progressbar
-from data_processing import load_and_process_data, create_gapped_paragraphs
-from diagram_utils import load_metrics, draw_whole_diagram_area
+from utils.data_processing import load_and_process_data, create_gapped_paragraphs
+from utils.diagram_utils import load_metrics, draw_whole_diagram_area
 from llm_processing import process_llm_responses
 from ui_components import create_sidebar, create_main_buttons, create_progress_bars, load_state
 
