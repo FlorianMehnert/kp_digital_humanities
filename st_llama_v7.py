@@ -118,6 +118,12 @@ def clear_cache(full_reset=True):
         st.session_state.load_state = False
     if 'to_be_loaded_state' not in st.session_state:
         st.session_state.to_be_loaded_state = None
+    if 'show_system_prompt' not in st.session_state:
+        st.session_state.show_system_prompt = False
+    if 'show_user_message' not in st.session_state:
+        st.session_state.show_user_message = False
+    if 'show_assistant_message' not in st.session_state:
+        st.session_state.show_assistant_message = False
 
 
 clear_cache(False)
@@ -200,7 +206,7 @@ def main():
             load_state(st.session_state.to_be_loaded_state)
 
     except Exception as e:
-        st.toast(e)
+        pass
 
     try:
         fig = draw_whole_diagram_area()

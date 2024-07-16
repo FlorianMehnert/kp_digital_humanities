@@ -241,4 +241,4 @@ def draw_whole_diagram_area():
             except Exception as e:
                 st.warning(e)
     except IndexError:
-        st.toast("error")
+        pass
