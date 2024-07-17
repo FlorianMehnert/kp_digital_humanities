@@ -25,7 +25,7 @@ ollama pull llama3
 
 ### run any streamlit app
 ```bash
-streamlit run st_llama_v7.py
+streamlit run st_llama_automate.py
 ```
 
 if you run the app using `streamlit run llama.py` your app should look like this:
