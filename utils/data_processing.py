@@ -1,4 +1,4 @@
-import dataset_processing as ds
+import utils.dataset_processing as ds
 import streamlit as st
 
 
